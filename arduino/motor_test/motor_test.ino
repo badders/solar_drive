@@ -15,9 +15,14 @@ void setup() {
    digitalWrite(m2pins[sync], HIGH);
    digitalWrite(m2pins[dir], LOW);
    digitalWrite(m1pins[dir], LOW);
-   digitalWrite(m2pins[clock], LOW);
-   digitalWrite(m1pins[clock], LOW);
    Serial.println("Listening for status changes ...");
+}
+
+void motor_step(int *m) {
+  digitalWrite(m[clock], HIGH);
+  delayMicroseconds(50);
+  digitalWrite(m[clock], LOW);
+  delayMicroseconds(50);
 }
 
 void turn(int motor, int direct, int steps) {
@@ -46,10 +51,7 @@ void turn(int motor, int direct, int steps) {
   }
   
   for(int i=0; i < steps; i++) {
-    digitalWrite(m[clock], HIGH);
-    delayMicroseconds(50);
-    digitalWrite(m[clock], LOW);
-    delayMicroseconds(50);
+    motor_step(m);
   }
  
   digitalWrite(m[sync], HIGH);
