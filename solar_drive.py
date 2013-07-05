@@ -25,9 +25,10 @@ class SerialApp(QtGui.QMainWindow):
         self._timer = QtCore.QTimer()
 
         self._timer.timeout.connect(self._readPort)
-        self._timer.start(200)
+        self._timer.start(50)
 
         self._ui.show()
+        self._command_running = False
 
     def __del__(self):
         self._ser.close()
@@ -35,6 +36,8 @@ class SerialApp(QtGui.QMainWindow):
     def _readPort(self):
         while self._ser.inWaiting():
             line = self._ser.readline().strip()
+            if 'Finished' in line:
+                self._command_running = False
             self._ui.textBrowser.append(line)
 
     def _steps(self):
@@ -53,8 +56,10 @@ class SerialApp(QtGui.QMainWindow):
         self._sendCommand(BODY, RIGHT, self._steps())
 
     def _sendCommand(self, motor, direction, steps):
+        if self._command_running:
+            return
+        self._command_running = True
         cmd = '{} {} {}\n'.format(int(motor), int(direction), int(steps))
-        print cmd
         self._ser.write(cmd)
 
 if __name__ == '__main__':
