@@ -56,6 +56,9 @@
             <property name="text">
              <string>&lt;</string>
             </property>
+            <property name="autoRepeat">
+             <bool>true</bool>
+            </property>
             <property name="arrowType">
              <enum>Qt::LeftArrow</enum>
             </property>
@@ -67,7 +70,12 @@
              <string>&gt;</string>
             </property>
             <property name="icon">
-             <iconset theme="next"/>
+             <iconset theme="next">
+              <normaloff/>
+             </iconset>
+            </property>
+            <property name="autoRepeat">
+             <bool>true</bool>
             </property>
             <property name="arrowType">
              <enum>Qt::RightArrow</enum>
@@ -90,6 +98,9 @@
             <property name="text">
              <string>&lt;</string>
             </property>
+            <property name="autoRepeat">
+             <bool>true</bool>
+            </property>
             <property name="arrowType">
              <enum>Qt::LeftArrow</enum>
             </property>
@@ -99,6 +110,9 @@
            <widget class="QToolButton" name="mirrorRight">
             <property name="text">
              <string>&gt;</string>
+            </property>
+            <property name="autoRepeat">
+             <bool>true</bool>
             </property>
             <property name="arrowType">
              <enum>Qt::RightArrow</enum>
