@@ -10,6 +10,7 @@ BODY = 0
 LEFT = 0
 RIGHT = 1
 
+
 class SerialApp(QtGui.QMainWindow):
     def __init__(self):
         super(SerialApp, self).__init__()
@@ -66,4 +67,3 @@ if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     win = SerialApp()
     sys.exit(app.exec_())
-
