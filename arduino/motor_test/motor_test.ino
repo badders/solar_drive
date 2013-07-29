@@ -30,34 +30,34 @@ void motor_step(unsigned int pin) {
 
 void turn(unsigned int motor, unsigned int direct, unsigned int steps) {
     Motor m;
-  
+
     if(motor == 1) {
         m = m1;
     } else {
         m = m2;
     }
-  
+
     digitalWrite(m.sync, LOW);
-    
+
     Serial.print("Turning Motor ");
     Serial.print(motor);
     Serial.print(" for ");
     Serial.print(steps);
     Serial.println(" steps.");
-  
+
     if(direct == 1) {
         digitalWrite(m.dir, HIGH);
     } else {
         digitalWrite(m.dir, LOW);
     }
-  
+
     for(int i=0; i < steps; i++) {
         digitalWrite(m.clock, HIGH);
         delayMicroseconds(50);
         digitalWrite(m.clock, LOW);
         delayMicroseconds(50);
     }
- 
+
     delay(10);
     Serial.print("Encoder 1: ");
     Serial.println(e1_steps);
@@ -72,11 +72,6 @@ void doEncode1() {
     int B = digitalRead(e1.B);
 
     e1_steps += A == B ? 1 : -1;
-    
-    // Serial.print("1: ");
-    // Serial.print(A);
-    // Serial.print('\t');
-    // Serial.println(B);
 }
 
 void doEncode2() {
@@ -84,10 +79,6 @@ void doEncode2() {
     int B = digitalRead(e2.B);
 
     e2_steps += A == B ? 1 : -1;
-    // Serial.print("2: ");
-    // Serial.print(A);
-    // Serial.print('\t');
-    // Serial.println(B);
 }
 
 void setup() {
@@ -102,7 +93,7 @@ void setup() {
     pinMode(m2.sync, OUTPUT);
     pinMode(m2.dir, OUTPUT);
     pinMode(m2.home, INPUT);
-     
+
     pinMode(e1.Z, INPUT);
     pinMode(e1.A, INPUT);
     pinMode(e1.B, INPUT);

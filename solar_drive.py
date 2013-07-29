@@ -4,8 +4,8 @@ import sys
 
 from PyQt4 import QtGui, QtCore, uic
 
-MIRROR = 1
-BODY = 0
+MIRROR = 0
+BODY = 1
 
 LEFT = 0
 RIGHT = 1
