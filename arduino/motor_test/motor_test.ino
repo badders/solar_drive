@@ -1,3 +1,7 @@
+#include "Encoder.h"
+
+#define STEP_DELAY_uS 200
+#define ENCODER_PAUSE_mS 500
 
 typedef struct {
     unsigned int clock;
@@ -9,24 +13,8 @@ typedef struct {
 const Motor m1 = {47, 46, 48, 49};
 const Motor m2 = {43, 42, 44, 45};
 
-typedef struct {
-    unsigned int Z;
-    unsigned int A;
-    unsigned int B;
-} Encoder;
-
-const Encoder e1 = {2, 18, 19};
-const Encoder e2 = {3, 20, 21};
-
-volatile long e1_steps = 0;
-volatile long e2_steps = 0;
-
-void motor_step(unsigned int pin) {
-    digitalWrite(pin, HIGH);
-    delayMicroseconds(50);
-    digitalWrite(pin, LOW);
-    delayMicroseconds(50);
-}
+Encoder e1(18, 19);
+Encoder e2(20, 21);
 
 void turn(unsigned int motor, unsigned int direct, unsigned int steps) {
     Motor m;
@@ -53,32 +41,19 @@ void turn(unsigned int motor, unsigned int direct, unsigned int steps) {
 
     for(int i=0; i < steps; i++) {
         digitalWrite(m.clock, HIGH);
-        delayMicroseconds(50);
+        delayMicroseconds(STEP_DELAY_uS);
         digitalWrite(m.clock, LOW);
-        delayMicroseconds(50);
+        delayMicroseconds(STEP_DELAY_uS);
     }
 
-    delay(10);
+    delay(ENCODER_PAUSE_mS);
+
     Serial.print("Encoder 1: ");
-    Serial.println(e1_steps);
+    Serial.println(e1.read());
     Serial.print("Encoder 2: ");
-    Serial.println(e2_steps);
+    Serial.println(e2.read());
 
     digitalWrite(m.sync, HIGH);
-}
-
-void doEncode1() {
-    int A = digitalRead(e1.A);
-    int B = digitalRead(e1.B);
-
-    e1_steps += A == B ? 1 : -1;
-}
-
-void doEncode2() {
-    int A = digitalRead(e2.A);
-    int B = digitalRead(e2.B);
-
-    e2_steps += A == B ? 1 : -1;
 }
 
 void setup() {
@@ -94,19 +69,11 @@ void setup() {
     pinMode(m2.dir, OUTPUT);
     pinMode(m2.home, INPUT);
 
-    pinMode(e1.Z, INPUT);
-    pinMode(e1.A, INPUT);
-    pinMode(e1.B, INPUT);
-
-    pinMode(e2.Z, INPUT);
-    pinMode(e2.A, INPUT);
-    pinMode(e2.B, INPUT);
+    e1.write(0);
+    e2.write(0);
 
     digitalWrite(m1.sync, HIGH);
     digitalWrite(m2.sync, HIGH);
-
-    attachInterrupt(0, doEncode1, CHANGE);
-    attachInterrupt(1, doEncode2, CHANGE);
 
     Serial.println("Listening for status changes ...");
 }
