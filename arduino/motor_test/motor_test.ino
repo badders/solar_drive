@@ -1,7 +1,7 @@
 #include "Encoder.h"
 
-#define STEP_DELAY_uS 200
-#define ENCODER_PAUSE_mS 500
+#define STEP_DELAY_uS 100
+#define ENCODER_PAUSE_mS 100
 
 typedef struct {
     unsigned int clock;
