@@ -1,69 +1,69 @@
 import serial
 import time
 import sys
+import logging
 
 from PyQt4 import QtGui, QtCore, uic
 
-MIRROR = 0
-BODY = 1
 
-LEFT = 0
-RIGHT = 1
-
-
-class SerialApp(QtGui.QMainWindow):
+class SerialApp(QtGui.QApplication):
     def __init__(self):
-        super(SerialApp, self).__init__()
-        self._ui = uic.loadUi('solar_drive.ui')
-        self._ser = serial.Serial('/dev/tty.usbserial-A600f6JS', 9600)
+        super(SerialApp, self).__init__([])
+        self.ui = uic.loadUi('solar_drive.ui')
+        self.ser = serial.Serial('/dev/tty.usbserial-A600f6JS', 9600)
         time.sleep(2)
 
-        self._ui.mirrorLeft.pressed.connect(self.mirrorLeft)
-        self._ui.mirrorRight.pressed.connect(self.mirrorRight)
-        self._ui.bodyLeft.pressed.connect(self.bodyLeft)
-        self._ui.bodyRight.pressed.connect(self.bodyRight)
+        self.ui.mirrorLeft.pressed.connect(self.mirrorAC)
+        self.ui.mirrorRight.pressed.connect(self.mirrorCW)
+        self.ui.bodyLeft.pressed.connect(self.bodyAC)
+        self.ui.bodyRight.pressed.connect(self.bodyCW)
+        self.ui.resetButton.pressed.connect(self.reset)
 
-        self._timer = QtCore.QTimer()
+        self.timer = QtCore.QTimer()
 
-        self._timer.timeout.connect(self._readPort)
-        self._timer.start(50)
+        self.timer.timeout.connect(self.readPort)
+        self.timer.start(50)
 
-        self._ui.show()
-        self._command_running = False
+        self.ui.show()
+        self.commands_running = 0
 
     def __del__(self):
-        self._ser.close()
+        self.ser.close()
 
-    def _readPort(self):
-        while self._ser.inWaiting():
-            line = self._ser.readline().strip()
-            if 'Finished' in line:
-                self._command_running = False
-            self._ui.textBrowser.append(line)
+    def readPort(self):
+        while self.ser.inWaiting():
+            line = self.ser.readline().strip()
+            logging.debug('Received:\t{}'.format(line))
+            self.commands_running -= 1
+            self.ui.textBrowser.append(line)
 
-    def _steps(self):
-        return self._ui.steps.value()
+    def steps(self):
+        return self.ui.steps.value()
 
-    def mirrorLeft(self):
-        self._sendCommand(MIRROR, LEFT, self._steps())
+    def mirrorCW(self):
+        self.sendCommand('M', 'C', self.steps())
 
-    def mirrorRight(self):
-        self._sendCommand(MIRROR, RIGHT, self._steps())
+    def mirrorAC(self):
+        self.sendCommand('M', 'A', self.steps())
 
-    def bodyLeft(self):
-        self._sendCommand(BODY, LEFT, self._steps())
+    def bodyCW(self):
+        self.sendCommand('B', 'C', self.steps())
 
-    def bodyRight(self):
-        self._sendCommand(BODY, RIGHT, self._steps())
+    def bodyAC(self):
+        self.sendCommand('B', 'A', self.steps())
 
-    def _sendCommand(self, motor, direction, steps):
-        if self._command_running:
+    def reset(self):
+        self.ser.write(bytes('R\n'))
+
+    def sendCommand(self, motor, direction, steps):
+        if self.commands_running > 0:
             return
-        self._command_running = True
-        cmd = '{} {} {}\n'.format(int(motor), int(direction), int(steps))
-        self._ser.write(cmd)
+        self.commands_running += 1
+        cmd = bytes('T{}{} {}'.format(motor, direction, steps))
+        self.ser.write(cmd)
+        print cmd
+        logging.debug('Sent:\t{}'.format(cmd))
 
 if __name__ == '__main__':
-    app = QtGui.QApplication(sys.argv)
-    win = SerialApp()
+    app = SerialApp()
     sys.exit(app.exec_())

@@ -1,7 +1,64 @@
+/*
+Implements a driver for the solar telescope that can be communicated with
+over serial
+
+Control:
+
+No initialisation required. It is up to the calling program to determine how
+the steps and encoder values relate to real-life motion
+
+Commands:
+T - Turn Motor
+    Reply - Integer of encoder count
+R - Reset encoder counts to 0
+    Reply - None
+
+Motor names:
+B - Main body motor
+M - Mirror Motor
+
+Directions:
+C - Clockwise
+A - Anticlockwise
+
+Protocol:
+
+<command> <PARAMETERS><newline>
+
+i.e. To turn a motor send:
+
+<command> <NAME> <direction> <no turns><newline character>
+
+Replies with the number of turns counted on the encoder.
+
+i.e. To turn the body 1000 steps send:
+
+'B1000\n'
+
+Then you will recieve a long integer back with the number of steps counted on
+the encoder
+
+A sample session may look like (as python strings):
+
+out: 'R\n'
+out: 'T MC 1000\n'
+in:  '200\n'
+out: 'T BA 300\n'
+in:  '-85\n'
+*/
+
 #include "Encoder.h"
 
-#define STEP_DELAY_uS 100
+#define STEP_DELAY_uS 50
 #define ENCODER_PAUSE_mS 100
+#define SYNC_PAUSE_mS 100
+#define CHAR_WAIT while (Serial.available() == 0) delay(10);
+
+//#define DEBUG
+
+#ifdef DEBUG
+#warning "DEBUG is defined!"
+#endif
 
 typedef struct {
     unsigned int clock;
@@ -10,50 +67,78 @@ typedef struct {
     unsigned int home;
 } Motor;
 
-const Motor m1 = {47, 46, 48, 49};
-const Motor m2 = {43, 42, 44, 45};
+Motor m1 = {47, 46, 48, 49};
+Motor m2 = {43, 42, 44, 45};
 
-Encoder e1(18, 19);
-Encoder e2(20, 21);
+Encoder e1(20, 21);
+Encoder e2(18, 19);
 
-void turn(unsigned int motor, unsigned int direct, unsigned int steps) {
-    Motor m;
+void perform_turn() {
+    Motor *m;
+    Encoder *e;
 
-    if(motor == 1) {
-        m = m1;
-    } else {
-        m = m2;
+    CHAR_WAIT
+    char mtr = Serial.read();
+
+#ifdef DEBUG
+    Serial.print("MOTOR: ");
+    Serial.println(mtr);
+#endif
+
+    switch(mtr) {
+    case 'M':
+        m = &m2;
+        e = &e2;
+        break;
+    case 'B':
+        m = &m1;
+        e = &e1;
+        break;
+    default:
+        Serial.print("Unknown Motor: ");
+        Serial.println(mtr);
+        return;
     }
 
-    digitalWrite(m.sync, LOW);
+    digitalWrite(m->sync, LOW);
+    delay(SYNC_PAUSE_mS);
 
-    Serial.print("Turning Motor ");
-    Serial.print(motor);
-    Serial.print(" for ");
-    Serial.print(steps);
-    Serial.println(" steps.");
+    CHAR_WAIT
+    char dir = Serial.read();
 
-    if(direct == 1) {
-        digitalWrite(m.dir, HIGH);
-    } else {
-        digitalWrite(m.dir, LOW);
+#ifdef DEBUG
+    Serial.print("DIRECTION: ");
+    Serial.println(dir);
+#endif
+
+    switch(dir) {
+    case 'A':
+        digitalWrite(m->dir, LOW);
+        break;
+    case 'C':
+        digitalWrite(m->dir, HIGH);
+        break;
+    default:
+        Serial.println("Unknown Direction");
+        return;
     }
+
+    int steps = Serial.parseInt();
 
     for(int i=0; i < steps; i++) {
-        digitalWrite(m.clock, HIGH);
+        digitalWrite(m->clock, HIGH);
         delayMicroseconds(STEP_DELAY_uS);
-        digitalWrite(m.clock, LOW);
+        digitalWrite(m->clock, LOW);
         delayMicroseconds(STEP_DELAY_uS);
     }
 
     delay(ENCODER_PAUSE_mS);
 
-    Serial.print("Encoder 1: ");
-    Serial.println(e1.read());
-    Serial.print("Encoder 2: ");
-    Serial.println(e2.read());
+    Serial.println(e->read());
 
-    digitalWrite(m.sync, HIGH);
+    delay(SYNC_PAUSE_mS);
+
+    digitalWrite(m->sync, HIGH);
 }
 
 void setup() {
@@ -74,21 +159,30 @@ void setup() {
 
     digitalWrite(m1.sync, HIGH);
     digitalWrite(m2.sync, HIGH);
-
-    Serial.println("Listening for status changes ...");
 }
 
 void loop() {
-    int motor, direct, steps;
     while (Serial.available() > 0) {
-        motor = Serial.parseInt();
-        direct = Serial.parseInt();
-        steps = Serial.parseInt();
+        char command = Serial.read();
 
-        if(Serial.read() == '\n') {
-            turn(motor, direct, steps);
+#ifdef DEBUG
+        Serial.print("COMMAND: ");
+        Serial.println(command);
+#endif
+
+        switch(command) {
+        case 'R':
+            CHAR_WAIT
+            Serial.read();
+            e1.write(0);
+            e2.write(0);
+            break;
+        case 'T':
+            perform_turn();
+            break;
+        default:
+            Serial.print("Unknown Command: ");
+            Serial.println(command);
         }
-
-        Serial.println("Finished Turning");
     }
 }
