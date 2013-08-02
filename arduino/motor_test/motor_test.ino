@@ -52,7 +52,7 @@ in:  '-85\n'
 #define STEP_DELAY_uS 50
 #define ENCODER_PAUSE_mS 100
 #define SYNC_PAUSE_mS 100
-#define CHAR_WAIT while (Serial.available() == 0) delay(10);
+
 
 //#define DEBUG
 
@@ -73,12 +73,19 @@ Motor m2 = {43, 42, 44, 45};
 Encoder e1(20, 21);
 Encoder e2(18, 19);
 
+char blocking_read() {
+    char input;
+    do {
+        input = Serial.read();
+    } while(input == -1);
+    return input;
+}
+
 void perform_turn() {
     Motor *m;
     Encoder *e;
 
-    CHAR_WAIT
-    char mtr = Serial.read();
+    char mtr = blocking_read();
 
 #ifdef DEBUG
     Serial.print("MOTOR: ");
@@ -103,8 +110,7 @@ void perform_turn() {
     digitalWrite(m->sync, LOW);
     delay(SYNC_PAUSE_mS);
 
-    CHAR_WAIT
-    char dir = Serial.read();
+    char dir = blocking_read();
 
 #ifdef DEBUG
     Serial.print("DIRECTION: ");
@@ -163,7 +169,7 @@ void setup() {
 
 void loop() {
     while (Serial.available() > 0) {
-        char command = Serial.read();
+        char command = blocking_read();
 
 #ifdef DEBUG
         Serial.print("COMMAND: ");
@@ -172,8 +178,6 @@ void loop() {
 
         switch(command) {
         case 'R':
-            CHAR_WAIT
-            Serial.read();
             e1.write(0);
             e2.write(0);
             break;
@@ -184,5 +188,6 @@ void loop() {
             Serial.print("Unknown Command: ");
             Serial.println(command);
         }
+        blocking_read();
     }
 }
