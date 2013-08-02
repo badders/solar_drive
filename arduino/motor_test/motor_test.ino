@@ -9,7 +9,13 @@ the steps and encoder values relate to real-life motion
 
 Commands:
 T - Turn Motor
+    Parameters - Motor name, Direction, Number of Turns
     Reply - Integer of encoder count
+
+E - Request Encoder value
+    Parameters - Motor name
+    Reply - Integer of encoder count
+
 R - Reset encoder counts to 0
     Reply - None
 
@@ -23,11 +29,11 @@ A - Anticlockwise
 
 Protocol:
 
-<command> <PARAMETERS><newline>
+<command><PARAMETERS><newline>
 
 i.e. To turn a motor send:
 
-<command> <NAME> <direction> <no turns><newline character>
+<command><NAME><direction><no turns><newline character>
 
 Replies with the number of turns counted on the encoder.
 
@@ -41,9 +47,11 @@ the encoder
 A sample session may look like (as python strings):
 
 out: 'R\n'
-out: 'T MC 1000\n'
+out: 'TMC 000\n'
 in:  '200\n'
-out: 'T BA 300\n'
+out: 'EM\n'
+int: '200\n'
+out: 'TBA300\n'
 in:  '-85\n'
 */
 
@@ -79,6 +87,31 @@ char blocking_read() {
         input = Serial.read();
     } while(input == -1);
     return input;
+}
+
+void encoder_count() {
+    Encoder *e;
+    char mtr = blocking_read();
+
+#ifdef DEBUG
+    Serial.print("MOTOR: ");
+    Serial.println(mtr);
+#endif
+
+    switch(mtr) {
+    case 'M':
+        e = &e2;
+        break;
+    case 'B':
+        e = &e1;
+        break;
+    default:
+        Serial.print("Unknown Motor: ");
+        Serial.println(mtr);
+        return;
+    }
+
+    Serial.println(e->read());
 }
 
 void perform_turn() {
@@ -183,6 +216,9 @@ void loop() {
             break;
         case 'T':
             perform_turn();
+            break;
+        case 'E':
+            encoder_count();
             break;
         default:
             Serial.print("Unknown Command: ");
