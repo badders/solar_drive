@@ -59,7 +59,7 @@ class SerialApp(QtGui.QApplication):
         if self.commands_running > 0:
             return
         self.commands_running += 1
-        cmd = bytes('T{}{} {}\n'.format(motor, direction, steps))
+        cmd = bytes('T{}{}{}\n'.format(motor, direction, steps))
         self.ser.write(cmd)
         logging.debug('Sent:\t{}'.format(cmd))
 

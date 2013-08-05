@@ -47,7 +47,7 @@ the encoder
 A sample session may look like (as python strings):
 
 out: 'R\n'
-out: 'TMC 000\n'
+out: 'TMC1000\n'
 in:  '200\n'
 out: 'EM\n'
 int: '200\n'
