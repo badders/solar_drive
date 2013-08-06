@@ -43,6 +43,8 @@ ARCSEC_PER_STEP = (360 * 60 * 60) / STEPS_PER_REV
 SEC_PER_ENC = SEC_PER_STEP * STEPS_PER_ENC
 ARCSEC_PER_ENC = ARCSEC_PER_STEP * STEPS_PER_ENC
 
+SLIP_FACTOR = STEPS_PER_ENC / 10
+
 
 class _Singleton(type):
     _instances = {}
@@ -160,9 +162,9 @@ def adjust_ra(seconds):
     """
     turns = SEC_PER_ENC * seconds
     if turns < 0:
-        direc = Directions.clockwise
+        direc = Directions.anit_clockwise
     else:
-        direc = Directions.anti_clockwise
+        direc = Directions.clockwise
     turn(Devices.mirror, direc, abs(turns))
 
 
@@ -185,9 +187,9 @@ def reset_zero():
     Telescope().send_command('R')
 
 
-def smooth_track_ra(seconds):
+def smooth_track_ra(seconds, callback=None):
     start = datetime.now()
-    start_enc = current_position(Devices.mirror)
+    start_enc = current_position(Devices.body)
     time_tracked = 0
     enc_tracked = 0
     logging.debug('Smooth tracking for: {}s'.format(seconds))
@@ -201,18 +203,21 @@ def smooth_track_ra(seconds):
         turns = (dt - time_tracked) / SEC_PER_STEP
 
         if enc_error > 1:
-            turns += STEPS_PER_ENC * enc_error
+            turns += (STEPS_PER_ENC - 1) * enc_error
         elif enc_error > 0:
-            turns += STEPS_PER_ENC / 5
+            turns += SLIP_FACTOR
         elif enc_error < 0:
             turns = -1
 
         if turns > 0:
-            Telescope().send_command('T{}{}{}'.format(Devices.mirror, Directions.clockwise, int(turns)))
+            Telescope().send_command('T{}{}{}'.format(Devices.body, Directions.clockwise, int(turns)))
             enc_tracked = int(Telescope().readline())
-            logging.debug('Elapsed: {}\tTurns: {}\tError: {}'.format(dt, turns, enc_error))
+            logging.debug('Elapsed: {:6.2f} Turns: {:5.2f} Error: {}'.format(dt, turns, int(enc_error)))
 
         time_tracked = dt
+
+        if callback is not None:
+            callback()
         #time.sleep(SEC_PER_STEP / 3)
 
 
@@ -222,7 +227,7 @@ def naive_track_ra(seconds):
     while(tracked < seconds):
         now = datetime.now()
         error = (now - start).total_seconds() - tracked
-        logging.debug('Elapsed: {}\tTracked: {}\tError: {}'.format((now - start).total_seconds(), tracked, error))
+        logging.debug('Elapsed: {:.2}\tTracked: {:.2}\tError: {}'.format((now - start).total_seconds(), tracked, error))
         # now track for a second
         track_time = int(error + SEC_PER_ENC)
         if track_time > 0:
