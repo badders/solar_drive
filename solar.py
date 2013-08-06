@@ -186,57 +186,51 @@ def reset_zero():
     """
     Telescope().send_command('R')
 
-
-def smooth_track_ra(seconds, callback=None):
-    start = datetime.now()
-    start_enc = current_position(Devices.body)
-    time_tracked = 0
-    enc_tracked = 0
-    logging.debug('Smooth tracking for: {}s'.format(seconds))
-    while(time_tracked < seconds):
-        now = datetime.now()
-        dt = (now - start).total_seconds()
-
-        enc_expected = math.floor(dt / SEC_PER_ENC)
-        enc_error = enc_expected - (enc_tracked - start_enc)
-
-        turns = (dt - time_tracked) / SEC_PER_STEP
-
-        if enc_error > 1:
-            turns += (STEPS_PER_ENC - 1) * enc_error
-        elif enc_error > 0:
-            turns += SLIP_FACTOR
-        elif enc_error < 0:
-            turns = -1
-
-        if turns > 0:
-            Telescope().send_command('T{}{}{}'.format(Devices.body, Directions.clockwise, int(turns)))
-            enc_tracked = int(Telescope().readline())
-            logging.debug('Elapsed: {:6.2f} Turns: {:5.2f} Error: {}'.format(dt, turns, int(enc_error)))
-
-        time_tracked = dt
-
-        if callback is not None:
-            callback()
-        #time.sleep(SEC_PER_STEP / 3)
-
-
-def naive_track_ra(seconds):
-    start = datetime.now()
-    tracked = 0
-    while(tracked < seconds):
-        now = datetime.now()
-        error = (now - start).total_seconds() - tracked
-        logging.debug('Elapsed: {:.2}\tTracked: {:.2}\tError: {}'.format((now - start).total_seconds(), tracked, error))
-        # now track for a second
-        track_time = int(error + SEC_PER_ENC)
-        if track_time > 0:
-            adjust_ra(track_time)
-            tracked = tracked + track_time
-        time.sleep(SEC_PER_STEP)
-
-
 if __name__ == '__main__':
+    # Test tracking algorithm ideas
+    def smooth_track_ra(seconds):
+        start = datetime.now()
+        start_enc = current_position(Devices.body)
+        time_tracked = 0
+        enc_tracked = 0
+        logging.debug('Smooth tracking for: {}s'.format(seconds))
+        while(time_tracked < seconds):
+            now = datetime.now()
+            dt = (now - start).total_seconds()
+
+            enc_expected = math.floor(dt / SEC_PER_ENC)
+            enc_error = enc_expected - (enc_tracked - start_enc)
+
+            turns = (dt - time_tracked) / SEC_PER_STEP
+
+            if enc_error > 1:
+                turns += (STEPS_PER_ENC - 1) * enc_error
+            elif enc_error > 0:
+                turns += SLIP_FACTOR
+            elif enc_error < 0:
+                turns = -1
+
+            if turns > 0:
+                Telescope().send_command('T{}{}{}'.format(Devices.body, Directions.clockwise, int(turns)))
+                enc_tracked = int(Telescope().readline())
+                logging.debug('Elapsed: {:6.2f} Turns: {:5.2f} Error: {}'.format(dt, turns, int(enc_error)))
+
+            time_tracked = dt
+
+    def naive_track_ra(seconds):
+        start = datetime.now()
+        tracked = 0
+        while(tracked < seconds):
+            now = datetime.now()
+            error = (now - start).total_seconds() - tracked
+            logging.debug('Elapsed: {:.2}\tTracked: {:.2}\tError: {}'.format((now - start).total_seconds(), tracked, error))
+            # now track for a second
+            track_time = int(error + SEC_PER_ENC)
+            if track_time > 0:
+                adjust_ra(track_time)
+                tracked = tracked + track_time
+            time.sleep(SEC_PER_STEP)
+
     logging.basicConfig(level=logging.DEBUG)
     logging.debug('Motor steps per 1 encode tick: {}'.format(STEPS_PER_ENC))
     logging.debug('Seconds per motor step: {}'.format(SEC_PER_STEP))
