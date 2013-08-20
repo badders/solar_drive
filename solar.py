@@ -5,7 +5,7 @@ import serial
 from functools import wraps
 import time
 import math
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 
 
@@ -162,10 +162,10 @@ def adjust_ra(seconds):
     """
     turns = SEC_PER_ENC * seconds
     if turns < 0:
-        direc = Directions.anit_clockwise
+        direc = Directions.anti_clockwise
     else:
         direc = Directions.clockwise
-    turn(Devices.mirror, direc, abs(turns))
+    turn(Devices.body, direc, abs(turns))
 
 
 def turn_dec(arcsec):
@@ -177,7 +177,7 @@ def turn_dec(arcsec):
         direc = Directions.clockwise
     else:
         direc = Directions.anti_clockwise
-    turn(Devices.body, direc, abs(turns))
+    turn(Devices.mirror, direc, abs(turns))
 
 
 def reset_zero():
@@ -240,5 +240,5 @@ if __name__ == '__main__':
     logging.debug('Tracking RA:')
     connect()
     reset_zero()
-    smooth_track_ra(10)
+    smooth_track_ra(7200)
     #naive_track_ra(240)
