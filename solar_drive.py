@@ -24,7 +24,7 @@ class LogCapture(QtCore.QObject):
 
 class SolarDriverApp(QtGui.QApplication):
     def __init__(self):
-        super(SerialApp, self).__init__([])
+        super(SolarDriverApp, self).__init__([])
         ui = uic.loadUi('solar_drive.ui')
         solar.connect()
 
