@@ -274,6 +274,13 @@
             </property>
            </widget>
           </item>
+          <item>
+           <widget class="QPushButton" name="zeroReturn">
+            <property name="text">
+             <string>Return to Zero</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
        </layout>
@@ -467,16 +474,19 @@
               </layout>
              </item>
              <item>
-              <widget class="QPushButton" name="setSun">
+              <widget class="QPushButton" name="setZero">
                <property name="text">
-                <string>Set as Sun Location</string>
+                <string>Set as Zero Location</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="setZero">
+              <widget class="QPushButton" name="setSun">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
                <property name="text">
-                <string>Set as Zero Location</string>
+                <string>Set as Sun Location</string>
                </property>
               </widget>
              </item>

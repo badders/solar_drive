@@ -187,9 +187,9 @@ def adjust_dec(arcsec):
     """
     turns = arcsec / ARCSEC_PER_ENC
     if turns < 0:
-        direc = Directions.clockwise
-    else:
         direc = Directions.anti_clockwise
+    else:
+        direc = Directions.clockwise
     turn(Devices.mirror, direc, abs(turns))
 
 

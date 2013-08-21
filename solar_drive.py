@@ -12,6 +12,7 @@ class SolarDriverApp(QtGui.QApplication):
         super(SolarDriverApp, self).__init__([])
         ui = uic.loadUi('solar_drive.ui')
         logging.basicConfig(level=logging.DEBUG)
+
         solar.connect()
         solar.log_constants()
 
@@ -21,6 +22,7 @@ class SolarDriverApp(QtGui.QApplication):
         timer.start(300)
 
         ui.trackButton.pressed.connect(self.track)
+        ui.zeroReturn.pressed.connect(self.return_to_zero)
 
         ui.raLeft.pressed.connect(self.raLeft)
         ui.raRight.pressed.connect(self.raRight)
@@ -32,8 +34,12 @@ class SolarDriverApp(QtGui.QApplication):
         self.ui = ui
         self.tracking = False
 
-        self.aboutToQuit.connect(self.save_config)
+        self.aboutToQuit.connect(self.terminating)
         self.load_config()
+
+    def terminating(self):
+        self.tracking = False
+        self.save_config()
 
     def load_config(self):
         """
@@ -62,7 +68,7 @@ class SolarDriverApp(QtGui.QApplication):
     def raRight(self):
         arc = self.ui.calArcSec.value()
         solar.adjust_ra(arc)
-        self.ra += arc
+        self._ra += arc
 
     def decLeft(self):
         arc = self.ui.calArcSec.value()
@@ -77,13 +83,12 @@ class SolarDriverApp(QtGui.QApplication):
     def track(self):
         if self.tracking:
             logging.info('Tracking Cancelled')
-            self.return_to_zero()
             self.tracking = False
             return
         logging.info('Tracking Sun Commencing')
         self.tracking = True
-        self.find_sun()
-        #self.start_tracking()
+        #self.find_sun()
+        self.start_tracking()
 
     def find_sun(self):
         dec = (90. - self.ui.latitude.value()) * 3600
@@ -98,32 +103,40 @@ class SolarDriverApp(QtGui.QApplication):
 
     def start_tracking(self):
         # Track Loop
-        start = datetime.now()
+        start = datetime.utcnow()
         start_enc = solar.current_position(solar.Devices.body)
-        time_tracked = 0
-        enc_tracked = 0
+        start_ra = self._ra
+        while self.tracking:
+            time_tracked = 0
+            enc_tracked = 0
 
-        now = datetime.now()
-        dt = (now - start).total_seconds()
+            # Track in 3 second bursts to allow for cancelling
+            while(time_tracked < 3.0):
+                now = datetime.utcnow()
+                dt = (now - start).total_seconds()
 
-        enc_expected = math.floor(dt / solar.SEC_PER_ENC)
-        enc_error = enc_expected - (enc_tracked - start_enc)
+                enc_expected = math.floor(dt / solar.SEC_PER_ENC)
+                enc_error = enc_expected - (enc_tracked - start_enc)
 
-        turns = (dt - time_tracked) / solar.SEC_PER_STEP
+                turns = (dt - time_tracked) / solar.SEC_PER_STEP
 
-        if enc_error > 1:
-            turns += (solar.STEPS_PER_ENC - 1) * enc_error
-        elif enc_error > 0:
-            turns += solar.SLIP_FACTOR
-        elif enc_error < 0:
-            turns = -1
+                if enc_error > 1:
+                    turns += (solar.STEPS_PER_ENC - 1) * enc_error
+                elif enc_error > 0:
+                    turns += solar.SLIP_FACTOR
+                elif enc_error < 0:
+                    turns = -1
 
-        if turns > 0:
-            solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
-            enc_tracked = int(solar.Telescope().readline())
-            logging.debug('Elapsed: {:6.2f} Turns: {:5.2f} Error: {}'.format(dt, turns, int(enc_error)))
+                if turns > 0:
+                    solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
+                    enc_tracked = int(solar.Telescope().readline())
+                    logging.debug('Elapsed: {:6.2f} Turns: {:5.2f} Error: {}'.format(dt, turns, int(enc_error)))
 
-        time_tracked = dt
+                time_tracked = dt
+                self._ra = start_ra + enc_tracked * solar.SEC_PER_ENC
+                QtGui.QApplication.processEvents()
+
+            start = start + timedelta(seconds=time_tracked)
 
     def return_to_zero(self):
         logging.info('Returning to zero')
