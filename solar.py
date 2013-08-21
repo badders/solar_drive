@@ -154,13 +154,14 @@ def turn(motor, direction, enc_turns):
         raw_turns = int(max(raw_turns, STEPS_PER_ENC / 4))
         completed = _raw_turn(motor, direction, raw_turns)
         dt -= completed
+    # Adjust for over turn
 
 
-def adjust_ra(seconds):
+def adjust_ra_sec(seconds):
     """
-    Adjust the ra by seconds
+    Adjust the ra in seconds
     """
-    turns = SEC_PER_ENC * seconds
+    turns = seconds / SEC_PER_ENC
     if turns < 0:
         direc = Directions.anti_clockwise
     else:
@@ -168,11 +169,23 @@ def adjust_ra(seconds):
     turn(Devices.body, direc, abs(turns))
 
 
-def turn_dec(arcsec):
+def adjust_ra(arcsec):
+    """
+    Adjust the ra by arcseconds
+    """
+    turns = arcsec / ARCSEC_PER_ENC
+    if turns < 0:
+        direc = Directions.anti_clockwise
+    else:
+        direc = Directions.clockwise
+    turn(Devices.body, direc, abs(turns))
+
+
+def adjust_dec(arcsec):
     """
     Adjust the declination by arcsec
     """
-    turns = ARCSEC_PER_ENC * arcsec
+    turns = arcsec / ARCSEC_PER_ENC
     if turns < 0:
         direc = Directions.clockwise
     else:
@@ -186,9 +199,16 @@ def reset_zero():
     """
     Telescope().send_command('R')
 
+
+def log_constants(level=logging.DEBUG):
+    logging.debug('Motor steps per 1 encode tick: {}'.format(STEPS_PER_ENC))
+    logging.debug('Arcsec per motor step: {}'.format(ARCSEC_PER_STEP))
+    logging.debug('Arcsec per encoder step: {}'.format(ARCSEC_PER_ENC))
+
 if __name__ == '__main__':
     # Test tracking algorithm ideas
     def smooth_track_ra(seconds):
+        logging.debug('Tracking RA:')
         start = datetime.now()
         start_enc = current_position(Devices.body)
         time_tracked = 0
@@ -232,12 +252,7 @@ if __name__ == '__main__':
             time.sleep(SEC_PER_STEP)
 
     logging.basicConfig(level=logging.DEBUG)
-    logging.debug('Motor steps per 1 encode tick: {}'.format(STEPS_PER_ENC))
-    logging.debug('Seconds per motor step: {}'.format(SEC_PER_STEP))
-    logging.debug('Arcsec per motor step: {}'.format(ARCSEC_PER_STEP))
-    logging.debug('Seconds per encoder step: {}'.format(SEC_PER_ENC))
-    logging.debug('Arcsec per encoder step: {}'.format(ARCSEC_PER_ENC))
-    logging.debug('Tracking RA:')
+    log_constants()
     connect()
     reset_zero()
     smooth_track_ra(7200)
