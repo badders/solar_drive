@@ -195,10 +195,21 @@ class SolarDriverApp(QtGui.QApplication):
         qmst = QtCore.QTime(mst.hour, mst.minute, mst.second)
         self.ui.solarTime.setTime(qmst)
 
-        ra = int(self._ra)
-        dec = int(self._dec)
-        sra = '{:+02d}h{:02d}m{:02d}s'.format(ra // 3600, (ra // 60) % 60, ra % 60)
-        sdec = '{:+02d}d{:02d}m{:02d}s'.format(dec // 3600, (dec // 60) % 60, dec % 60)
+        ra = int(abs(self._ra))
+        h, m, s = ra // 3600, (ra // 60) % 60, ra % 60
+        if self._ra < 0:
+            sign = '-'
+        else:
+            sign = '+'
+        sra = '{}{:02d}h{:02d}m{:02d}s'.format(sign, h, m, s)
+
+        dec = int(abs(self._dec))
+        d, m, s = dec // 3600, (dec // 60) % 60, dec % 60
+        if self._dec < 0:
+            sign = '-'
+        else:
+            sign = '+'
+        sdec = '{}{:02d}d{:02d}m{:02d}s'.format(sign, d, m, s)
 
         self.ui.raDisplay.setText(sra)
         self.ui.decDisplay.setText(sdec)
