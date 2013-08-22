@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>561</width>
-    <height>370</height>
+    <width>610</width>
+    <height>386</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,6 +17,9 @@
    <layout class="QHBoxLayout" name="horizontalLayout_2">
     <item>
      <widget class="QTabWidget" name="tabWidget">
+      <property name="tabShape">
+       <enum>QTabWidget::Rounded</enum>
+      </property>
       <property name="currentIndex">
        <number>0</number>
       </property>
@@ -213,7 +216,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QDoubleSpinBox" name="raAdjust_2">
+              <widget class="QDoubleSpinBox" name="raAdjust">
                <property name="prefix">
                 <string/>
                </property>
@@ -226,6 +229,9 @@
                <property name="maximum">
                 <double>7200.000000000000000</double>
                </property>
+               <property name="singleStep">
+                <double>21.600000000000001</double>
+               </property>
               </widget>
              </item>
              <item>
@@ -236,7 +242,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QDoubleSpinBox" name="decAdjust_2">
+              <widget class="QDoubleSpinBox" name="decAdjust">
                <property name="suffix">
                 <string> Arcsec</string>
                </property>
@@ -245,6 +251,9 @@
                </property>
                <property name="maximum">
                 <double>7200.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>21.600000000000001</double>
                </property>
               </widget>
              </item>
@@ -271,6 +280,13 @@
             </property>
             <property name="checkable">
              <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="findSun">
+            <property name="text">
+             <string>Goto Sun</string>
             </property>
            </widget>
           </item>
@@ -529,20 +545,6 @@
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_5">
         <item>
-         <widget class="QComboBox" name="logLevel">
-          <item>
-           <property name="text">
-            <string>Information</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Debug</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item>
          <widget class="QTextEdit" name="logViewer">
           <property name="readOnly">
            <bool>true</bool>
@@ -555,7 +557,6 @@
     </item>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <resources/>
  <connections/>

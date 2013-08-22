@@ -4,19 +4,38 @@ import logging
 import solar
 from datetime import datetime, timedelta
 from PyQt4 import QtGui, QtCore, uic
-from functools import wraps
+
+
+class QStreamIntercept(QtCore.QObject):
+    """
+    Wrapper to capture log messages
+    """
+    msg = QtCore.pyqtSignal(str)
+
+    def flush(self):
+        pass
+
+    def write(self, text):
+        self.msg.emit(text)
 
 
 class SolarDriverApp(QtGui.QApplication):
     def __init__(self):
         super(SolarDriverApp, self).__init__([])
         ui = uic.loadUi('solar_drive.ui')
-        logging.basicConfig(level=logging.DEBUG)
+        self.ui = ui
+
+        stream = QStreamIntercept()
+
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().addHandler(logging.StreamHandler(stream))
+        stream.msg.connect(self.log)
 
         solar.connect()
         solar.log_constants()
 
         ui.show()
+
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.update_time)
         timer.start(300)
@@ -32,7 +51,6 @@ class SolarDriverApp(QtGui.QApplication):
 
         ui.setZero.pressed.connect(self.set_zero)
 
-        self.ui = ui
         self.tracking = False
 
         self.aboutToQuit.connect(self.terminating)
@@ -40,6 +58,7 @@ class SolarDriverApp(QtGui.QApplication):
 
     def terminating(self):
         self.tracking = False
+        sys.stdout = sys.__stdout__
         self.save_config()
 
     def load_config(self):
@@ -181,6 +200,9 @@ class SolarDriverApp(QtGui.QApplication):
         dt = timedelta(seconds=longitude / 15 * 3600)
         mst = lt + dt
         return mst
+
+    def log(self, msg):
+        self.ui.logViewer.append(str(msg).strip())
 
     def update_time(self):
         lt = datetime.now()
