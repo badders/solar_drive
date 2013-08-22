@@ -19,6 +19,26 @@ class QStreamIntercept(QtCore.QObject):
         self.msg.emit(text)
 
 
+def ra_to_str(seconds):
+    ra = int(abs(seconds))
+    h, m, s = ra // 3600, (ra // 60) % 60, ra % 60
+    if seconds < 0:
+        sign = '-'
+    else:
+        sign = '+'
+    return '{}{:02d}h{:02d}m{:02d}s'.format(sign, h, m, s)
+
+
+def dec_to_str(arcsec):
+    dec = int(abs(arcsec))
+    d, m, s = dec // 3600, (dec // 60) % 60, dec % 60
+    if arcsec < 0:
+        sign = '-'
+    else:
+        sign = '+'
+    return '{}{:02d}d{:02d}m{:02d}s'.format(sign, d, m, s)
+
+
 class SolarDriverApp(QtGui.QApplication):
     def __init__(self):
         super(SolarDriverApp, self).__init__([])
@@ -121,12 +141,12 @@ class SolarDriverApp(QtGui.QApplication):
         dec = self.sun_dec()
         ra = self.sun_ra()
 
-        logging.info('Sun at: {} seconds {} arcsec'.format(ra, dec))
+        logging.info('Sun at: {} {}'.format(ra_to_str(ra), dec_to_str(dec)))
 
         solar.adjust_dec(dec - self._dec)
         self._dec = dec
 
-        while abs(ra - self._ra) > 5:
+        while abs(ra - self._ra) > 2 * solar.ARCSEC_PER_ENC:
             solar.adjust_ra_sec(ra - self._ra)
             self._ra = ra
             ra = self.sun_ra()
@@ -217,24 +237,8 @@ class SolarDriverApp(QtGui.QApplication):
         qmst = QtCore.QTime(mst.hour, mst.minute, mst.second)
         self.ui.solarTime.setTime(qmst)
 
-        ra = int(abs(self._ra))
-        h, m, s = ra // 3600, (ra // 60) % 60, ra % 60
-        if self._ra < 0:
-            sign = '-'
-        else:
-            sign = '+'
-        sra = '{}{:02d}h{:02d}m{:02d}s'.format(sign, h, m, s)
-
-        dec = int(abs(self._dec))
-        d, m, s = dec // 3600, (dec // 60) % 60, dec % 60
-        if self._dec < 0:
-            sign = '-'
-        else:
-            sign = '+'
-        sdec = '{}{:02d}d{:02d}m{:02d}s'.format(sign, d, m, s)
-
-        self.ui.raDisplay.setText(sra)
-        self.ui.decDisplay.setText(sdec)
+        self.ui.raDisplay.setText(ra_to_str(self._ra))
+        self.ui.decDisplay.setText(dec_to_str(self._dec))
 
 if __name__ == '__main__':
     app = SolarDriverApp()
