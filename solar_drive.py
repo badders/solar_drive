@@ -63,6 +63,7 @@ class SolarDriverApp(QtGui.QApplication):
         solar.log_constants()
 
         ui.show()
+        ui.raise_()
 
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.update_time)
