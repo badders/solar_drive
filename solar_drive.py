@@ -53,16 +53,15 @@ class SolarDriverApp(QtGui.QApplication):
         timer.timeout.connect(self.update_time)
         timer.start(300)
 
-        ui.trackButton.pressed.connect(self.track)
-        ui.findSun.pressed.connect(self.find_sun)
-        ui.zeroReturn.pressed.connect(self.telescope.return_to_zero)
+        ui.trackButton.clicked.connect(self.track)
+        ui.findSun.clicked.connect(self.find_sun)
+        ui.zeroReturn.clicked.connect(self.telescope.return_to_zero)
 
-        ui.raLeft.pressed.connect(self.raLeft)
-        ui.raRight.pressed.connect(self.raRight)
-        ui.decLeft.pressed.connect(self.decLeft)
-        ui.decRight.pressed.connect(self.decRight)
-
-        ui.setZero.pressed.connect(self.telescope.set_zero)
+        ui.raLeft.clicked.connect(self.raLeft)
+        ui.raRight.clicked.connect(self.raRight)
+        ui.decLeft.clicked.connect(self.decLeft)
+        ui.decRight.clicked.connect(self.decRight)
+        ui.setZero.clicked.connect(self.telescope.set_zero)
 
         self.aboutToQuit.connect(self.terminating)
         self.load_config()
@@ -116,7 +115,7 @@ class SolarDriverApp(QtGui.QApplication):
             return
         logging.info('Tracking Sun Commencing')
         self.find_sun()
-        self.telescope.start_track()
+        self.telescope.start_tracking()
 
     def find_sun(self):
         self.telescope.slew_to_sun()

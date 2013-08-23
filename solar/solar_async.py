@@ -5,6 +5,9 @@ import solar
 import logging
 from common import *
 
+#TEMPORARY
+from PyQt4 import QtGui
+
 
 def thread_process(conn):
     pass
@@ -86,6 +89,7 @@ class TelescopeManager(Process):
 
     def start_tracking(self):
         self.tracking = True
+        self.track()
 
     def stop_tracking(self):
         self.tracking = False
@@ -96,16 +100,16 @@ class TelescopeManager(Process):
         # If far slew to location, otherwise smooth track
         while self.tracking:
             # Compensate for any fine tuning of declination
-            dec = self._dec
-            target = self.sun_dec() + self.ui.decAdjust.value()
+            dec = self.dec
+            target = sun_dec(self.latitude)
             if abs(target - dec) > solar.ARCSEC_PER_ENC:
                 solar.adjust_dec(target - dec)
                 self._dec = target
                 logging.debug('Compensating declination adjustment')
 
             # Now track along RA
-            ra = self._ra
-            target = self.sun_ra() + self.ui.raAdjust.value()
+            ra = self.ra
+            target = sun_ra(self.longitude)
 
             # If the gap has become large, slew
             if abs(target - ra) > solar.SEC_PER_ENC:
