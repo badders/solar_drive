@@ -200,11 +200,11 @@ def reset_zero():
     Telescope().send_command('R')
 
 
-def log_constants(level=logging.DEBUG):
-    logging.debug('Motor steps per encode tick: {}'.format(STEPS_PER_ENC))
-    logging.debug('Arcsec per motor step: {}'.format(ARCSEC_PER_STEP))
-    logging.debug('Arcsec per encoder step: {}'.format(ARCSEC_PER_ENC))
-    logging.debug('Seconds per encoder step: {}'.format(SEC_PER_ENC))
+def log_constants():
+    logging.info('Motor steps per encode tick: {}'.format(STEPS_PER_ENC))
+    logging.info('Arcsec per motor step: {}'.format(ARCSEC_PER_STEP))
+    logging.info('Arcsec per encoder step: {}'.format(ARCSEC_PER_ENC))
+    logging.info('Seconds per encoder step: {}'.format(SEC_PER_ENC))
 
 if __name__ == '__main__':
     # Test tracking algorithm ideas

@@ -27,26 +27,6 @@ class QStreamIntercept(QtCore.QObject):
         self.msg.emit(text)
 
 
-def ra_to_str(seconds):
-    ra = int(abs(seconds))
-    h, m, s = ra // 3600, (ra // 60) % 60, ra % 60
-    if seconds < 0:
-        sign = '-'
-    else:
-        sign = '+'
-    return '{}{:02d}h{:02d}m{:02d}s'.format(sign, h, m, s)
-
-
-def dec_to_str(arcsec):
-    dec = int(abs(arcsec))
-    d, m, s = dec // 3600, (dec // 60) % 60, dec % 60
-    if arcsec < 0:
-        sign = '-'
-    else:
-        sign = '+'
-    return '{}{:02d}d{:02d}m{:02d}s'.format(sign, d, m, s)
-
-
 class SolarDriverApp(QtGui.QApplication):
     def __init__(self):
         super(SolarDriverApp, self).__init__([])
@@ -139,18 +119,11 @@ class SolarDriverApp(QtGui.QApplication):
         self.find_sun()
         self.start_tracking()
 
-    def sun_ra(self):
-        mst = self.mst()
-        return timedelta(hours=mst.hour - 12, minutes=mst.minute, seconds=mst.second).total_seconds()
-
-    def sun_dec(self):
-        return (90. - self.ui.latitude.value()) * 3600
-
     def find_sun(self):
-        dec = self.sun_dec()
-        ra = self.sun_ra()
+        dec = solar.sun_dec(self.ui.latitude.value())
+        ra = solar.sun_ra(self.ui.longitude.value())
 
-        logging.info('Sun at: {} {}'.format(ra_to_str(ra), dec_to_str(dec)))
+        logging.info('Sun at: {} {}'.format(solar.ra_to_str(ra), solar.dec_to_str(dec)))
 
         solar.adjust_dec(dec - self._dec)
         self._dec = dec
@@ -210,6 +183,12 @@ class SolarDriverApp(QtGui.QApplication):
                 if self.tracking:
                     QtGui.QApplication.processEvents()
 
+    def sun_ra(self):
+        return solar.sun_ra(self.ui.longitude.value())
+
+    def sun_dec(self):
+        return solar.sun_dec(self.ui.latitude.value())
+
     def return_to_zero(self):
         logging.info('Returning to zero')
         solar.adjust_ra_sec(-self._ra)
@@ -223,13 +202,6 @@ class SolarDriverApp(QtGui.QApplication):
         self._ra = 0
         self._dec = 0
 
-    def mst(self):
-        lt = datetime.utcnow()
-        longitude = float(self.ui.longitude.value())
-        dt = timedelta(seconds=longitude / 15 * 3600)
-        mst = lt + dt
-        return mst
-
     def log(self, msg):
         self.ui.logViewer.append(str(msg).strip())
 
@@ -242,12 +214,12 @@ class SolarDriverApp(QtGui.QApplication):
         qutc = QtCore.QTime(utc.hour, utc.minute, utc.second)
         self.ui.utcTime.setTime(qutc)
 
-        mst = self.mst()
+        mst = solar.mean_solar_time(self.ui.longitude.value())
         qmst = QtCore.QTime(mst.hour, mst.minute, mst.second)
         self.ui.solarTime.setTime(qmst)
 
-        self.ui.raDisplay.setText(ra_to_str(self._ra))
-        self.ui.decDisplay.setText(dec_to_str(self._dec))
+        self.ui.raDisplay.setText(solar.ra_to_str(self._ra))
+        self.ui.decDisplay.setText(solar.dec_to_str(self._dec))
 
 if __name__ == '__main__':
     app = SolarDriverApp()
