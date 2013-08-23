@@ -1,9 +1,8 @@
-import math
 import sys
 import logging
 import solar
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from PyQt4 import QtGui, QtCore, uic
 
 
@@ -39,8 +38,13 @@ class SolarDriverApp(QtGui.QApplication):
         logging.getLogger().addHandler(logging.StreamHandler(stream))
         stream.msg.connect(self.log)
 
-        solar.connect()
-        solar.log_constants()
+        self.telescope = solar.TelescopeManager()
+        self.telescope.latitude = self.ui.latitude.value()
+        self.telescope.longitude = self.ui.longitude.value()
+        self.telescope.start()
+
+        #self.ui.latitude.valueChanged.connect(self.telescope.latitude)
+        #self.ui.longitude.valueChanged.connect(self.telescope.longitude)
 
         ui.show()
         ui.raise_()
@@ -51,22 +55,22 @@ class SolarDriverApp(QtGui.QApplication):
 
         ui.trackButton.pressed.connect(self.track)
         ui.findSun.pressed.connect(self.find_sun)
-        ui.zeroReturn.pressed.connect(self.return_to_zero)
+        ui.zeroReturn.pressed.connect(self.telescope.return_to_zero)
 
         ui.raLeft.pressed.connect(self.raLeft)
         ui.raRight.pressed.connect(self.raRight)
         ui.decLeft.pressed.connect(self.decLeft)
         ui.decRight.pressed.connect(self.decRight)
 
-        ui.setZero.pressed.connect(self.set_zero)
-
-        self.tracking = False
+        ui.setZero.pressed.connect(self.telescope.set_zero)
 
         self.aboutToQuit.connect(self.terminating)
         self.load_config()
 
     def terminating(self):
-        self.tracking = False
+        if self.telescope.tracking:
+            self.telescope.stop_tracking()
+        self.telescope.join()
         sys.stdout = sys.__stdout__
         self.save_config()
 
@@ -76,8 +80,8 @@ class SolarDriverApp(QtGui.QApplication):
         """
         settings = QtCore.QSettings('Solar Control', 'solar_drive')
         settings.beginGroup('Position')
-        self._ra = settings.value('ra', 0).toPyObject()
-        self._dec = settings.value('dec', 0).toPyObject()
+        self.telescope._ra = settings.value('ra', 0).toPyObject()
+        self.telescope._dec = settings.value('dec', 0).toPyObject()
         settings.endGroup()
 
     def save_config(self):
@@ -86,121 +90,36 @@ class SolarDriverApp(QtGui.QApplication):
         """
         settings = QtCore.QSettings('Solar Control', 'solar_drive')
         settings.beginGroup('Position')
-        settings.setValue('ra', self._ra)
-        settings.setValue('dec', self._dec)
+        settings.setValue('ra', self.telescope.ra)
+        settings.setValue('dec', self.telescope.dec)
 
     def raLeft(self):
         arc = self.ui.calArcSec.value()
-        solar.adjust_ra(-arc)
-        self._ra -= arc * 15
+        self.telescope.adjust_ra_arc(-arc)
 
     def raRight(self):
         arc = self.ui.calArcSec.value()
-        solar.adjust_ra(arc)
-        self._ra += arc * 15
+        self.telescope.adjust_ra_arc(arc)
 
     def decLeft(self):
         arc = self.ui.calArcSec.value()
-        solar.adjust_dec(-arc)
-        self._dec -= arc
+        self.telescope.adjust_dec(-arc)
 
     def decRight(self):
         arc = self.ui.calArcSec.value()
-        solar.adjust_dec(arc)
-        self._dec += arc
+        self.telescope.adjust_dec(arc)
 
     def track(self):
-        if self.tracking:
+        if self.telescope.tracking:
             logging.info('Tracking Cancelled')
-            self.tracking = False
+            self.telescope.stop_tracking()
             return
         logging.info('Tracking Sun Commencing')
-        self.tracking = True
         self.find_sun()
-        self.start_tracking()
+        self.telescope.start_track()
 
     def find_sun(self):
-        dec = solar.sun_dec(self.ui.latitude.value())
-        ra = solar.sun_ra(self.ui.longitude.value())
-
-        logging.info('Sun at: {} {}'.format(solar.ra_to_str(ra), solar.dec_to_str(dec)))
-
-        solar.adjust_dec(dec - self._dec)
-        self._dec = dec
-
-        while abs(ra - self._ra) > 2 * solar.ARCSEC_PER_ENC:
-            solar.adjust_ra_sec(ra - self._ra)
-            self._ra = ra
-            ra = self.sun_ra()
-
-    def start_tracking(self):
-        # Get sun position
-        # Add any calibraion
-        # If far slew to location, otherwise smooth track
-        while self.tracking:
-            # Compensate for any fine tuning of declination
-            dec = self._dec
-            target = self.sun_dec() + self.ui.decAdjust.value()
-            if abs(target - dec) > solar.ARCSEC_PER_ENC:
-                solar.adjust_dec(target - dec)
-                self._dec = target
-                logging.debug('Compensating declination adjustment')
-
-            # Now track along RA
-            ra = self._ra
-            target = self.sun_ra() + self.ui.raAdjust.value()
-
-            # If the gap has become large, slew
-            if abs(target - ra) > solar.SEC_PER_ENC:
-                solar.adjust_ra_sec(target - ra)
-                self._ra = target
-                logging.debug('Compensating for RA adjustment')
-
-            # Otherwise smoothly track for at least 3 seconds
-            time_tracked = 0
-            start = datetime.utcnow()
-            enc_tracked = 0
-            enc_start = solar.current_position(solar.Devices.body)
-            while(time_tracked < 3):
-                now = datetime.utcnow()
-                dt = (now - start).total_seconds()
-                enc_expected = math.floor(dt / solar.SEC_PER_ENC)
-                enc_error = enc_expected - enc_tracked
-                turns = (dt - time_tracked) // solar.SEC_PER_STEP
-
-                if enc_error > 0:
-                    turns += solar.SLIP_FACTOR
-                elif enc_error < 0:
-                    turns = 0
-
-                if turns > 0:
-                    solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
-                    enc_tracked += int(solar.Telescope().readline()) - enc_start
-                    time_tracked = dt
-                    logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
-                    self._ra = ra + enc_tracked * solar.SEC_PER_ENC
-
-                if self.tracking:
-                    QtGui.QApplication.processEvents()
-
-    def sun_ra(self):
-        return solar.sun_ra(self.ui.longitude.value())
-
-    def sun_dec(self):
-        return solar.sun_dec(self.ui.latitude.value())
-
-    def return_to_zero(self):
-        logging.info('Returning to zero')
-        solar.adjust_ra_sec(-self._ra)
-        solar.adjust_dec(-self._dec)
-        self._dec = 0
-        self._ra = 0
-
-    def set_zero(self):
-        logging.info('Setting as zero')
-        solar.reset_zero()
-        self._ra = 0
-        self._dec = 0
+        self.telescope.slew_to_sun()
 
     def log(self, msg):
         self.ui.logViewer.append(str(msg).strip())
@@ -218,8 +137,8 @@ class SolarDriverApp(QtGui.QApplication):
         qmst = QtCore.QTime(mst.hour, mst.minute, mst.second)
         self.ui.solarTime.setTime(qmst)
 
-        self.ui.raDisplay.setText(solar.ra_to_str(self._ra))
-        self.ui.decDisplay.setText(solar.dec_to_str(self._dec))
+        self.ui.raDisplay.setText(solar.ra_to_str(self.telescope.ra))
+        self.ui.decDisplay.setText(solar.dec_to_str(self.telescope.dec))
 
 if __name__ == '__main__':
     app = SolarDriverApp()
