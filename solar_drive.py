@@ -2,8 +2,16 @@ import math
 import sys
 import logging
 import solar
+import os
 from datetime import datetime, timedelta
 from PyQt4 import QtGui, QtCore, uic
+
+
+def get_ui_file(name):
+    """
+    Helper function to automatically correct path for files in ui/
+    """
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ui', name)
 
 
 class QStreamIntercept(QtCore.QObject):
@@ -42,7 +50,7 @@ def dec_to_str(arcsec):
 class SolarDriverApp(QtGui.QApplication):
     def __init__(self):
         super(SolarDriverApp, self).__init__([])
-        ui = uic.loadUi('solar_drive.ui')
+        ui = uic.loadUi(get_ui_file('solar_drive.ui'))
         self.ui = ui
 
         stream = QStreamIntercept()
