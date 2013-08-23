@@ -212,8 +212,8 @@ class SolarDriverApp(QtGui.QApplication):
 
     def return_to_zero(self):
         logging.info('Returning to zero')
-        solar.adjust_dec(-self._dec)
         solar.adjust_ra_sec(-self._ra)
+        solar.adjust_dec(-self._dec)
         self._dec = 0
         self._ra = 0
 

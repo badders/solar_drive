@@ -201,9 +201,10 @@ def reset_zero():
 
 
 def log_constants(level=logging.DEBUG):
-    logging.debug('Motor steps per 1 encode tick: {}'.format(STEPS_PER_ENC))
+    logging.debug('Motor steps per encode tick: {}'.format(STEPS_PER_ENC))
     logging.debug('Arcsec per motor step: {}'.format(ARCSEC_PER_STEP))
     logging.debug('Arcsec per encoder step: {}'.format(ARCSEC_PER_ENC))
+    logging.debug('Seconds per encoder step: {}'.format(SEC_PER_ENC))
 
 if __name__ == '__main__':
     # Test tracking algorithm ideas
