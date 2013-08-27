@@ -1,9 +1,10 @@
-import sys
 import logging
 import solar
 import os
+import sys
 from datetime import datetime
 from PyQt4 import QtGui, QtCore, uic
+
 
 def get_ui_file(name):
     """
@@ -12,30 +13,13 @@ def get_ui_file(name):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ui', name)
 
 
-class QStreamIntercept(QtCore.QObject):
-    """
-    Wrapper to capture log messages
-    """
-    msg = QtCore.pyqtSignal(str)
-
-    def flush(self):
-        pass
-
-    def write(self, text):
-        self.msg.emit(text)
-
-
 class SolarDriverApp(QtGui.QApplication):
     def __init__(self):
         super(SolarDriverApp, self).__init__([])
         ui = uic.loadUi(get_ui_file('solar_drive.ui'))
         self.ui = ui
 
-        stream = QStreamIntercept()
-
         logging.getLogger().setLevel(logging.DEBUG)
-        logging.getLogger().addHandler(logging.StreamHandler(stream))
-        stream.msg.connect(self.log)
 
         self.telescope = solar.TelescopeManager()
         self.telescope.start()
@@ -68,7 +52,6 @@ class SolarDriverApp(QtGui.QApplication):
 
     def terminating(self):
         self.telescope.join()
-        sys.stdout = sys.__stdout__
         self.save_config()
 
     def load_config(self):

@@ -29,7 +29,8 @@ def track_action(conn, latitude, longitude, ra, dec):
     # If the gap has become large, slew
     if abs(target - ra) > solar.SEC_PER_ENC:
         solar.adjust_ra_sec(target - ra)
-        self._ra = target
+        ra = target
+        conn.send([Responses.SET_RA, ra])
         logging.debug('Compensating for RA adjustment')
 
     # Otherwise smoothly track for at least 3 seconds
@@ -37,6 +38,7 @@ def track_action(conn, latitude, longitude, ra, dec):
     start = datetime.utcnow()
     enc_tracked = 0
     enc_start = solar.current_position(solar.Devices.body)
+    start_ra = ra
 
     while(time_tracked < 3):
         now = datetime.utcnow()
@@ -55,7 +57,8 @@ def track_action(conn, latitude, longitude, ra, dec):
             enc_tracked += int(solar.Telescope().readline()) - enc_start
             time_tracked = dt
             logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
-            self._ra = ra + enc_tracked * solar.SEC_PER_ENC
+            ra = start_ra + enc_tracked * solar.SEC_PER_ENC
+            conn.send([Responses.SET_RA, ra])
 
 
 def slew_to_sun(conn, latitude, longitude, ra, dec):
@@ -111,10 +114,6 @@ def thread_process(conn):
             while conn.poll():
                 msg = conn.recv()
                 cmd, args = msg[0], msg[1:]
-                if cmd == Commands.CANCEL_TRACK:
-                    tracking = False
-                elif cmd == Commands.TRACK:
-                    tracking = True
 
         if cmd == Commands.TERMINATE:
             return
@@ -143,6 +142,8 @@ def thread_process(conn):
             conn.send([Responses.SET_RA, 0])
             conn.send([Responses.SET_DEC, 0])
             ra, dec = 0, 0
+        elif cmd == Commands.TRACK:
+            tracking = True
         elif cmd == Commands.CANCEL_TRACK:
             tracking = False
         else:
@@ -161,6 +162,15 @@ class TelescopeManager(Process):
             else:
                 return None
         return _not_slewing
+
+    def not_tracking(f):
+        @wraps(f)
+        def _not_tracking(*args, **kwargs):
+            if not args[0].tracking:
+                return f(*args, **kwargs)
+            else:
+                return None
+        return _not_tracking
 
     def __init__(self):
         self.conn, child_conn = Pipe()
@@ -216,6 +226,8 @@ class TelescopeManager(Process):
         return self._longitude
 
     @longitude.setter
+    @not_slewing
+    @not_tracking
     def longitude(self, longitude):
         self._longitude = longitude
         self.conn.send([Commands.SET_LONG, longitude])
@@ -225,24 +237,30 @@ class TelescopeManager(Process):
         return self._latitude
 
     @latitude.setter
+    @not_slewing
+    @not_tracking
     def latitude(self, latitude):
         self._latitude = latitude
         self.conn.send([Commands.SET_LAT, latitude])
 
     @not_slewing
+    @not_tracking
     def slew_ra(self, arcsec):
         self.commands_running += 1
         self.conn.send([Commands.SLEW_RA, arcsec])
 
     @not_slewing
+    @not_tracking
     def slew_dec(self, arcsec):
         self.commands_running += 1
         self.conn.send([Commands.SLEW_DEC, arcsec])
 
+    @not_tracking
     def slew_to_sun(self):
         self.commands_running += 1
         self.conn.send([Commands.SLEW_TO_SUN])
 
+    @not_tracking
     def return_to_zero(self):
         logging.info('Returning to zero')
         self.commands_running += 1
@@ -253,6 +271,7 @@ class TelescopeManager(Process):
     def set_zero(self):
         self.conn.send([Commands.SET_ZERO])
 
+    @not_tracking
     def start_tracking(self):
         self.tracking = True
         self.conn.send([Commands.TRACK])
