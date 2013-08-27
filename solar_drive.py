@@ -5,7 +5,6 @@ import os
 from datetime import datetime
 from PyQt4 import QtGui, QtCore, uic
 
-
 def get_ui_file(name):
     """
     Helper function to automatically correct path for files in ui/
@@ -39,19 +38,20 @@ class SolarDriverApp(QtGui.QApplication):
         stream.msg.connect(self.log)
 
         self.telescope = solar.TelescopeManager()
-        self.telescope.latitude = self.ui.latitude.value()
-        self.telescope.longitude = self.ui.longitude.value()
         self.telescope.start()
 
-        #self.ui.latitude.valueChanged.connect(self.telescope.latitude)
-        #self.ui.longitude.valueChanged.connect(self.telescope.longitude)
+        self.telescope.latitude = self.ui.latitude.value()
+        self.telescope.longitude = self.ui.longitude.value()
+
+        #self.ui.latitude.valueChanged.connect(self.telescope.latitude.fset)
+        #self.ui.longitude.valueChanged.connect(self.telescope.longitude.fset)
 
         ui.show()
         ui.raise_()
 
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.update_time)
-        timer.start(300)
+        timer.start(200)
 
         ui.trackButton.clicked.connect(self.track)
         ui.findSun.clicked.connect(self.find_sun)
@@ -67,8 +67,6 @@ class SolarDriverApp(QtGui.QApplication):
         self.load_config()
 
     def terminating(self):
-        if self.telescope.tracking:
-            self.telescope.stop_tracking()
         self.telescope.join()
         sys.stdout = sys.__stdout__
         self.save_config()
@@ -79,8 +77,8 @@ class SolarDriverApp(QtGui.QApplication):
         """
         settings = QtCore.QSettings('Solar Control', 'solar_drive')
         settings.beginGroup('Position')
-        self.telescope._ra = settings.value('ra', 0).toPyObject()
-        self.telescope._dec = settings.value('dec', 0).toPyObject()
+        self.telescope.ra = settings.value('ra', 0).toPyObject()
+        self.telescope.dec = settings.value('dec', 0).toPyObject()
         settings.endGroup()
 
     def save_config(self):
@@ -94,19 +92,19 @@ class SolarDriverApp(QtGui.QApplication):
 
     def raLeft(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.adjust_ra_arc(-arc)
+        self.telescope.slew_ra(-arc)
 
     def raRight(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.adjust_ra_arc(arc)
+        self.telescope.slew_ra(arc)
 
     def decLeft(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.adjust_dec(-arc)
+        self.telescope.slew_dec(-arc)
 
     def decRight(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.adjust_dec(arc)
+        self.telescope.slew_dec(arc)
 
     def track(self):
         if self.telescope.tracking:
@@ -124,6 +122,8 @@ class SolarDriverApp(QtGui.QApplication):
         self.ui.logViewer.append(str(msg).strip())
 
     def update_time(self):
+        self.telescope.flush_messages()
+
         lt = datetime.now()
         qlt = QtCore.QTime(lt.hour, lt.minute, lt.second)
         self.ui.localTime.setTime(qlt)
