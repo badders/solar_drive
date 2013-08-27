@@ -67,14 +67,14 @@ def slew_to_sun(conn, latitude, longitude, ra, dec):
         solar.adjust_dec(sdec - dec)
         conn.send([Responses.SET_DEC, sdec])
 
-        while abs(sra - ra) > 2 * solar.ARCSEC_PER_ENC:
+        while abs(sra - ra) > solar.SEC_PER_ENC:
             solar.adjust_ra_sec(sra - ra)
             ra = sra
             conn.send([Responses.SET_RA, ra])
             sra = sun_ra(longitude)
 
         conn.send([Responses.SLEW_FINISHED])
-        return sra, sdec
+        return ra, sdec
 
 
 def slew_ra(conn, ra, arcsec):
@@ -106,7 +106,6 @@ def thread_process(conn):
     while True:
         if not tracking:
             msg = conn.recv()
-            print msg
             cmd, args = msg[0], msg[1:]
         else:
             while conn.poll():
