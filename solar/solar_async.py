@@ -74,7 +74,7 @@ def slew_to_sun(conn, latitude, longitude, ra, dec):
             sra = sun_ra(longitude)
 
         conn.send([Responses.SLEW_FINISHED])
-        return ra, dec
+        return sra, sdec
 
 
 def slew_ra(conn, ra, arcsec):
