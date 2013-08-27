@@ -79,7 +79,7 @@ def slew_to_sun(conn, latitude, longitude, ra, dec):
 
 def slew_ra(conn, ra, arcsec):
     solar.adjust_ra(arcsec)
-    ra += arcsec * 15
+    ra += arcsec / 15
     conn.send([Responses.SET_RA, ra])
     conn.send([Responses.SLEW_FINISHED])
     return ra
@@ -233,7 +233,7 @@ class TelescopeManager(Process):
     @not_slewing
     def slew_ra(self, arcsec):
         self.commands_running += 1
-        self.conn.send([Commands.SLEW_RA, arcsec / 15.])
+        self.conn.send([Commands.SLEW_RA, arcsec])
 
     @not_slewing
     def slew_dec(self, arcsec):
