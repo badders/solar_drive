@@ -34,9 +34,9 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
     # If the gap has become large, slew
     if abs(target - ra) > solar.SEC_PER_ENC:
         solar.adjust_ra_sec(target - ra)
+        logging.debug('Compensating for RA adjustment by {}s'.format(target - ra))
         ra = target
         conn.send([Responses.SET_RA, ra])
-        logging.debug('Compensating for RA adjustment')
 
     # Otherwise smoothly track for at least 3 seconds
     time_tracked = 0
@@ -52,6 +52,8 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         enc_error = enc_expected - enc_tracked
         turns = (dt - time_tracked) // solar.SEC_PER_STEP
 
+        if enc_error > 1:
+            turns += (enc_error - 1) * solar.STEPS_PER_ENC
         if enc_error > 0:
             turns += solar.SLIP_FACTOR
         elif enc_error < 0:
@@ -64,6 +66,8 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
             logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
             ra = start_ra + enc_tracked * solar.SEC_PER_ENC
             conn.send([Responses.SET_RA, ra])
+
+    return ra, dec
 
 
 def slew_to_sun(conn, latitude, longitude, ra, dec):
@@ -127,11 +131,9 @@ def thread_process(conn):
             assert(not tracking)
             ra, dec = slew_to_sun(conn, latitude, longitude, ra, dec)
         elif cmd == Commands.SLEW_RA:
-            assert(not tracking)
             arcsec = args[0]
             ra = slew_ra(conn, ra, arcsec)
         elif cmd == Commands.SLEW_DEC:
-            assert(not tracking)
             arcsec = args[0]
             dec = slew_dec(conn, dec, arcsec)
         elif cmd == Commands.SET_LAT:
@@ -139,9 +141,11 @@ def thread_process(conn):
         elif cmd == Commands.SET_LONG:
             longitude = args[0]
         elif cmd == Commands.SET_RA:
-            ra = args[0]
+            if not tracking:
+                ra = args[0]
         elif cmd == Commands.SET_DEC:
-            dec = args[0]
+            if not tracking:
+                dec = args[0]
         elif cmd == Commands.FINE_TUNE:
             tune = args[0]
         elif cmd == Commands.SET_ZERO:
@@ -158,7 +162,7 @@ def thread_process(conn):
             raise NotImplementedError
 
         if tracking:
-            track_action(conn, latitude, longitude, ra, dec, tune)
+            ra, dec = track_action(conn, latitude, longitude, ra, dec, tune)
 
 
 class TelescopeManager(Process):
