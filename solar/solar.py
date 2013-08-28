@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-Library for interfacing with the solar telescope.
+Library for interfacing with the arduino controlling the solar telescope
 """
 import serial
 from functools import wraps
@@ -10,6 +11,9 @@ import logging
 
 
 class Commands:
+    """
+    Command codes for the arduino program
+    """
     reset = 'R'
     turn = 'T'
 
@@ -28,7 +32,7 @@ class Directions:
 
 
 MOTOR_STEP_SIZE = 1.8  # degrees per step
-MICRO_STEPS = 16
+MICRO_STEPS = 16  # Number of microsteps per motor step
 GEAR_BOX_RATIO = 250
 GEAR_RATIO = 6.0
 STEP_SIZE = (MOTOR_STEP_SIZE / MICRO_STEPS) / GEAR_BOX_RATIO
@@ -47,6 +51,9 @@ SLIP_FACTOR = STEPS_PER_ENC / 10
 
 
 class _Singleton(type):
+    """
+    Class to force another class to be a singleton
+    """
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -56,6 +63,9 @@ class _Singleton(type):
 
 
 class Telescope:
+    """
+    Class to communicate with the arduino directly
+    """
     __metaclass__ = _Singleton
 
     def connected(f):

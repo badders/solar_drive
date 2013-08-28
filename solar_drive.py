@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""
+GUI Application for controlling the solar telescope
+"""
 import logging
 import solar
 import os
@@ -14,6 +18,10 @@ def get_ui_file(name):
 
 
 class SolarDriverApp(QtGui.QApplication):
+    """
+    The actual application. Handles loading the interface and connecting together
+    the interface elements to their respective functions
+    """
     def __init__(self):
         super(SolarDriverApp, self).__init__([])
         ui = uic.loadUi(get_ui_file('solar_drive.ui'))
@@ -54,6 +62,9 @@ class SolarDriverApp(QtGui.QApplication):
         self.load_config()
 
     def terminating(self):
+        """
+        Called just before the application quits
+        """
         self.telescope.join()
         self.save_config()
 
@@ -107,15 +118,16 @@ class SolarDriverApp(QtGui.QApplication):
     def return_to_zero(self):
         self.telescope.return_to_zero()
 
-    def log(self, msg):
-        self.ui.logViewer.append(str(msg).strip())
-
     def tune(self):
         t_ra = self.ui.raAdjust.value()
         t_dec = self.ui.decAdjust.value()
         self.telescope.tune([t_ra, t_dec])
 
     def update_time(self):
+        """
+        Called repeatedly to check for any updates and to update the time
+        and position displays
+        """
         self.telescope.flush_messages()
 
         lt = datetime.now()

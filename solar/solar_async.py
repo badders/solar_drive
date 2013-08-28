@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""
+Library for interacting with the telescope in an asynchronous manner
+"""
 from multiprocessing import Process, Pipe
 from datetime import datetime
 import math
@@ -8,6 +12,9 @@ from common import *
 
 
 class Commands:
+    """
+    Command codes for passing instructions to the thread running the telescope
+    """
     SET_RA, SET_DEC, SET_LAT, SET_LONG, \
         TRACK, CANCEL_TRACK, \
         TERMINATE, FINE_TUNE, \
@@ -15,30 +22,46 @@ class Commands:
 
 
 class Responses:
+    """
+    Repsonse codes for recieving data from the telescope thread
+    """
     SET_RA, SET_DEC, SLEW_FINISHED = range(3)
 
 
 def track_action(conn, latitude, longitude, ra, dec, tune):
-    # Get sun position
-    # Add any calibraion
-    # If far slew to location, otherwise smooth track
+    """
+    Actually peform the telescope tracking
 
-    # Now track along RA
+    conn -- The pipe connection to communicate position changes
+    latitude -- Current latitude
+    longitude -- Current longiture
+    ra -- Current right ascension of telescope
+    dec -- Current declination of telescope
+    tune -- [RA, Dec] manual fine tuning adjustment
+
+    Algorithm:
+    1. Check RA/Dec are where we expect, if not slew
+    2. Start smoothly tracking for appoximately 7 seconds as follow:
+        - Check if the encoders say we have dropped behind or gone too far and compensate
+        - Work out how much we should have turned in the time passed
+        - Turn the motors for this amount
+    """
     target = sun_ra(longitude) + tune[0]
     target_dec = sun_dec(latitude) + tune[1]
 
+    # Adjust declination in case of fine tuning
     if abs(target_dec - dec) > solar.ARCSEC_PER_ENC:
         solar.adjust_dec(target_dec - dec)
         conn.send([Responses.SET_DEC, target_dec])
 
-    # If the gap has become large, slew
+    # If RA is off by more than an encode step (1.44 seconds) then slew
     if abs(target - ra) > solar.SEC_PER_ENC:
         solar.adjust_ra_sec(target - ra)
         logging.debug('Compensating for RA adjustment by {}s'.format(target - ra))
         ra = target
         conn.send([Responses.SET_RA, ra])
 
-    # Otherwise smoothly track for at least 3 seconds
+    # Otherwise smoothly track for about 7 seconds
     time_tracked = 0
     start = datetime.utcnow()
     enc_tracked = 0
@@ -52,11 +75,15 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         enc_error = enc_expected - enc_tracked
         turns = (dt - time_tracked) // solar.SEC_PER_STEP
 
+        # Check encoders report the position we expect, otherwise compensat
         if enc_error > 1:
+            # Large slip, so attempt to catch up
             turns += (enc_error - 1) * solar.STEPS_PER_ENC
         if enc_error > 0:
+            # Small error, could be as little as one microstep so add small slip factor to catch up
             turns += solar.SLIP_FACTOR
         elif enc_error < 0:
+            # Overstepped, just dont turn for this cycle
             turns = 0
 
         if turns > 0:
@@ -71,25 +98,45 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
 
 
 def slew_to_sun(conn, latitude, longitude, ra, dec):
-        sdec = sun_dec(latitude)
+    """
+    Perform a slew to the suns location
+
+    conn -- The pipe connection to communicate position changes
+    latitude -- Current latitude
+    longitude -- Current longiture
+    ra -- Current right ascension of telescope
+    dec -- Current declination of telescope
+    """
+    sdec = sun_dec(latitude)
+    sra = sun_ra(longitude)
+
+    logging.info('Sun at: {} {}'.format(ra_to_str(sra), dec_to_str(sdec)))
+
+    solar.adjust_dec(sdec - dec)
+    conn.send([Responses.SET_DEC, sdec])
+
+    """
+    As slewing can take a long time, might need to slew some more to catch
+    up with the Sun
+    """
+    while abs(sra - ra) > solar.SEC_PER_ENC:
+        solar.adjust_ra_sec(sra - ra)
+        ra = sra
+        conn.send([Responses.SET_RA, ra])
         sra = sun_ra(longitude)
 
-        logging.info('Sun at: {} {}'.format(ra_to_str(sra), dec_to_str(sdec)))
-
-        solar.adjust_dec(sdec - dec)
-        conn.send([Responses.SET_DEC, sdec])
-
-        while abs(sra - ra) > solar.SEC_PER_ENC:
-            solar.adjust_ra_sec(sra - ra)
-            ra = sra
-            conn.send([Responses.SET_RA, ra])
-            sra = sun_ra(longitude)
-
-        conn.send([Responses.SLEW_FINISHED])
-        return ra, sdec
+    conn.send([Responses.SLEW_FINISHED])
+    return ra, sdec
 
 
 def slew_ra(conn, ra, arcsec):
+    """
+    Slew the right ascension of the telescope
+
+    conn -- The pipe connection to communicate position changes
+    ra -- Current right ascension of telescope
+    arcsec -- Arc seconds to slew by
+    """
     solar.adjust_ra(arcsec)
     ra += arcsec / 15
     conn.send([Responses.SET_RA, ra])
@@ -98,6 +145,13 @@ def slew_ra(conn, ra, arcsec):
 
 
 def slew_dec(conn, dec, arcsec):
+    """
+    Slew the declination of the telescope
+
+    conn -- The pipe connection to communicate position changes
+    dec -- Current declination of telescope
+    arcsec -- Arc seconds to slew by
+    """
     solar.adjust_dec(arcsec)
     dec += arcsec
     conn.send([Responses.SET_DEC, dec])
@@ -106,6 +160,16 @@ def slew_dec(conn, dec, arcsec):
 
 
 def thread_process(conn):
+    """
+    This is the program that runs on the seperate thread to communicate with the telsescope
+
+    Alogrigthm:
+
+    1. Connect to telescope
+    2. Wait for any commands
+    3. Perform command actions
+    4. GOTO 2
+    """
     solar.connect()
     solar.log_constants()
 
@@ -166,7 +230,14 @@ def thread_process(conn):
 
 
 class TelescopeManager(Process):
+    """
+    Wrap the command protocol for the telescope thread, and implement the
+    threading using the python multiprocessing Library
+    """
     def not_slewing(f):
+        """
+        Decorator to check we arent already performing a slew
+        """
         @wraps(f)
         def _not_slewing(*args, **kwargs):
             if args[0].commands_running is 0:
@@ -176,6 +247,9 @@ class TelescopeManager(Process):
         return _not_slewing
 
     def not_tracking(f):
+        """
+        Decorator to check we arent tracking
+        """
         @wraps(f)
         def _not_tracking(*args, **kwargs):
             if not args[0].tracking:
@@ -195,6 +269,9 @@ class TelescopeManager(Process):
         self.tracking = False
 
     def join(self, timeout=15):
+        """
+        Finish the thread and perform any cleanup
+        """
         if self.tracking:
             self.conn.send([Commands.CANCEL_TRACK])
         self.conn.send([Commands.TERMINATE])
@@ -203,6 +280,9 @@ class TelescopeManager(Process):
             self.flush_messages()
 
     def flush_messages(self):
+        """
+        Call to process any messages recieved from the telescope command thread
+        """
         while self.conn.poll():
             msg = self.conn.recv()
             res, args = msg[0], msg[1:]
