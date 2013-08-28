@@ -30,6 +30,9 @@ class SolarDriverApp(QtGui.QApplication):
         #self.ui.latitude.valueChanged.connect(self.telescope.latitude.fset)
         #self.ui.longitude.valueChanged.connect(self.telescope.longitude.fset)
 
+        self.ui.raAdjust.valueChanged.connect(self.tune)
+        self.ui.decAdjust.valueChanged.connect(self.tune)
+
         ui.show()
         ui.raise_()
 
@@ -39,7 +42,7 @@ class SolarDriverApp(QtGui.QApplication):
 
         ui.trackButton.clicked.connect(self.track)
         ui.findSun.clicked.connect(self.find_sun)
-        ui.zeroReturn.clicked.connect(self.telescope.return_to_zero)
+        ui.zeroReturn.clicked.connect(self.return_to_zero)
 
         ui.raLeft.clicked.connect(self.raLeft)
         ui.raRight.clicked.connect(self.raRight)
@@ -101,8 +104,16 @@ class SolarDriverApp(QtGui.QApplication):
     def find_sun(self):
         self.telescope.slew_to_sun()
 
+    def return_to_zero(self):
+        self.telescope.return_to_zero()
+
     def log(self, msg):
         self.ui.logViewer.append(str(msg).strip())
+
+    def tune(self):
+        t_ra = self.ui.raAdjust.value()
+        t_dec = self.ui.decAdjust.value()
+        self.telescope.tune([t_ra, t_dec])
 
     def update_time(self):
         self.telescope.flush_messages()

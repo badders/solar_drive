@@ -10,21 +10,26 @@ from common import *
 class Commands:
     SET_RA, SET_DEC, SET_LAT, SET_LONG, \
         TRACK, CANCEL_TRACK, \
-        TERMINATE, \
-        SLEW_RA, SLEW_DEC, SLEW_TO_SUN, SET_ZERO = range(11)
+        TERMINATE, FINE_TUNE, \
+        SLEW_RA, SLEW_DEC, SLEW_TO_SUN, SET_ZERO = range(12)
 
 
 class Responses:
     SET_RA, SET_DEC, SLEW_FINISHED = range(3)
 
 
-def track_action(conn, latitude, longitude, ra, dec):
+def track_action(conn, latitude, longitude, ra, dec, tune):
     # Get sun position
     # Add any calibraion
     # If far slew to location, otherwise smooth track
 
     # Now track along RA
-    target = sun_ra(longitude)
+    target = sun_ra(longitude) + tune[0]
+    target_dec = sun_dec(latitude) + tune[1]
+
+    if abs(target_dec - dec) > solar.ARCSEC_PER_ENC:
+        solar.adjust_dec(target_dec - dec)
+        conn.send([Responses.SET_DEC, target_dec])
 
     # If the gap has become large, slew
     if abs(target - ra) > solar.SEC_PER_ENC:
@@ -40,7 +45,7 @@ def track_action(conn, latitude, longitude, ra, dec):
     enc_start = solar.current_position(solar.Devices.body)
     start_ra = ra
 
-    while(time_tracked < 3):
+    while(time_tracked < 7):
         now = datetime.utcnow()
         dt = (now - start).total_seconds()
         enc_expected = math.floor(dt / solar.SEC_PER_ENC)
@@ -54,7 +59,7 @@ def track_action(conn, latitude, longitude, ra, dec):
 
         if turns > 0:
             solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
-            enc_tracked += int(solar.Telescope().readline()) - enc_start
+            enc_tracked = int(solar.Telescope().readline()) - enc_start
             time_tracked = dt
             logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
             ra = start_ra + enc_tracked * solar.SEC_PER_ENC
@@ -104,6 +109,7 @@ def thread_process(conn):
     longitude = 0
     ra = 0
     dec = 0
+    tune = [0.0, 0.0]
     tracking = False
 
     while True:
@@ -136,6 +142,8 @@ def thread_process(conn):
             ra = args[0]
         elif cmd == Commands.SET_DEC:
             dec = args[0]
+        elif cmd == Commands.FINE_TUNE:
+            tune = args[0]
         elif cmd == Commands.SET_ZERO:
             logging.info('Setting as zero')
             solar.reset_zero()
@@ -150,7 +158,7 @@ def thread_process(conn):
             raise NotImplementedError
 
         if tracking:
-            track_action(conn, latitude, longitude, ra, dec)
+            track_action(conn, latitude, longitude, ra, dec, tune)
 
 
 class TelescopeManager(Process):
@@ -267,6 +275,9 @@ class TelescopeManager(Process):
         self.conn.send([Commands.SLEW_RA, -self._ra])
         self.commands_running += 1
         self.conn.send([Commands.SLEW_DEC, -self._dec])
+
+    def tune(self, tune):
+        self.conn.send([Commands.FINE_TUNE, tune])
 
     def set_zero(self):
         self.conn.send([Commands.SET_ZERO])
