@@ -225,7 +225,7 @@ void loop() {
     Client client = server.available();
 
     if (client) {
-        while (true) {
+        while (client.available() > 0) {
             char command = blocking_read(client);
 
             Serial.print("Command: ");

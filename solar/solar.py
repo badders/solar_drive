@@ -2,7 +2,7 @@
 """
 Library for interfacing with the arduino controlling the solar telescope
 """
-import serial
+import socket
 from functools import wraps
 import time
 import math
@@ -30,6 +30,10 @@ class Directions:
     clockwise = 'C'
     anti_clockwise = 'A'
 
+arduino = {
+    'ip' : '192.168.2.2',
+    'port' : 8010
+}
 
 MOTOR_STEP_SIZE = 1.8  # degrees per step
 MICRO_STEPS = 16  # Number of microsteps per motor step
@@ -71,35 +75,39 @@ class Telescope:
     def connected(f):
         @wraps(f)
         def _connected(*args, **kwargs):
-            if args[0].ser is not None:
+            if args[0].client_socket is not None:
                 return f(*args, **kwargs)
             else:
                 raise IOError('Not connected to motors. Call Telescope.connect(\'<path to device>\')')
         return _connected
 
     def __init__(self):
-        self.ser = None
+        self.client_socket = None
 
     def __del__(self):
         self.disconnect()
 
-    def connect(self, device):
-        self.ser = serial.Serial(device, 9600)
+    def connect(self):
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((arduino['ip'], arduino['port']))
 
     @connected
     def disconnect(self, device):
-        self.ser.close()
-        self.ser = None
+        self.client_socket.close()
+        self.client_socket = None
 
     @connected
     def send_command(self, cmd):
-        #logging.debug('Send: {}'.format(cmd))
-        self.ser.write(cmd + '\n')
+        logging.debug('Send: {}'.format(cmd))
+        self.client_socket.send(cmd + '\n')
 
     @connected
     def readline(self):
-        data = self.ser.readline().strip()
-        #logging.debug('Recv: {}'.format(data))
+        data = ' '
+        while data[-1] != '\n':
+            data += self.client_socket.recv(1)
+        data = data.strip()
+        logging.debug('Recv: {}'.format(data))
         return data
 
 
@@ -119,12 +127,11 @@ def direction_check(f):
     return wrapper
 
 
-def connect(device='/dev/tty.usbserial-A600f6JS'):
+def connect():
     """
-    Connecte to the telscope on <device>
+    Connect to the telscope
     """
-    Telescope().connect(device)
-    time.sleep(2)
+    Telescope().connect()
 
 
 @motor_check

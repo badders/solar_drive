@@ -109,7 +109,7 @@ class SolarDriverApp(QtGui.QApplication):
             self.telescope.stop_tracking()
             return
         logging.info('Tracking Sun Commencing')
-        self.find_sun()
+        #self.find_sun()
         self.telescope.start_tracking()
 
     def find_sun(self):

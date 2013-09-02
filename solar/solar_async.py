@@ -46,7 +46,7 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         - Work out how much we should have turned in the time passed
         - Turn the motors for this amount
     """
-    target = sun_ra(longitude) + tune[0]
+    """target = sun_ra(longitude) + tune[0]
     target_dec = sun_dec(latitude) + tune[1]
 
     # Adjust declination in case of fine tuning
@@ -60,7 +60,7 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         logging.debug('Compensating for RA adjustment by {}s'.format(target - ra))
         ra = target
         conn.send([Responses.SET_RA, ra])
-
+    """
     # Otherwise smoothly track for about 7 seconds
     time_tracked = 0
     start = datetime.utcnow()
@@ -68,7 +68,7 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
     enc_start = solar.current_position(solar.Devices.body)
     start_ra = ra
 
-    while(time_tracked < 7):
+    while(time_tracked < 10):
         now = datetime.utcnow()
         dt = (now - start).total_seconds()
         enc_expected = math.floor(dt / solar.SEC_PER_ENC)

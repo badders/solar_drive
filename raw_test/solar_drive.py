@@ -1,16 +1,22 @@
-import serial
+import socket
 import time
 import sys
 import logging
 
 from PyQt4 import QtGui, QtCore, uic
 
+arduino = {
+    'ip' : '192.168.2.2',
+    'port' : 8010
+}
 
 class SerialApp(QtGui.QApplication):
     def __init__(self):
         super(SerialApp, self).__init__([])
         self.ui = uic.loadUi('solar_drive.ui')
-        self.ser = serial.Serial('/dev/tty.usbserial-A600f6JS', 9600)
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((arduino['ip'], arduino['port']))
+
         time.sleep(2)
 
         self.ui.mirrorLeft.pressed.connect(self.mirrorAC)
@@ -28,11 +34,11 @@ class SerialApp(QtGui.QApplication):
         self.commands_running = 0
 
     def __del__(self):
-        self.ser.close()
+        self.client_socket.close()
 
     def readPort(self):
-        while self.ser.inWaiting():
-            line = self.ser.readline().strip()
+        while self.client_socket.inWaiting():
+            line = self.client_socket.readline().strip()
             logging.debug('Received:\t{}'.format(line))
             self.commands_running -= 1
             self.ui.textBrowser.append(line)
@@ -53,14 +59,14 @@ class SerialApp(QtGui.QApplication):
         self.sendCommand('B', 'A', self.steps())
 
     def reset(self):
-        self.ser.write(bytes('R\n'))
+        self.client_socket.write(bytes('R\n'))
 
     def sendCommand(self, motor, direction, steps):
         if self.commands_running > 0:
             return
         self.commands_running += 1
         cmd = bytes('T{}{}{}\n'.format(motor, direction, steps))
-        self.ser.write(cmd)
+        self.client_socket.write(cmd)
         logging.debug('Sent:\t{}'.format(cmd))
 
 if __name__ == '__main__':
