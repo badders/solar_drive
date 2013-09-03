@@ -23,7 +23,7 @@
       <property name="currentIndex">
        <number>0</number>
       </property>
-      <widget class="QWidget" name="tab_2">
+      <widget class="QWidget" name="trackingTab">
        <attribute name="title">
         <string>Tracking</string>
        </attribute>
@@ -322,7 +322,7 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="tab">
+      <widget class="QWidget" name="calibrationTab">
        <attribute name="title">
         <string>Calibration</string>
        </attribute>

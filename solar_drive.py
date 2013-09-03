@@ -27,7 +27,7 @@ class SolarDriverApp(QtGui.QApplication):
         ui = uic.loadUi(get_ui_file('solar_drive.ui'))
         self.ui = ui
 
-        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.INFO)
 
         self.telescope = solar.TelescopeManager()
         self.telescope.start()
@@ -108,8 +108,10 @@ class SolarDriverApp(QtGui.QApplication):
         if self.telescope.tracking:
             logging.info('Tracking Cancelled')
             self.telescope.stop_tracking()
+            self.ui.calibrationTab.setEnabled(True)
             return
         logging.info('Tracking Sun Commencing')
+        self.ui.calibrationTab.setEnabled(False)
         self.find_sun()
         self.telescope.start_tracking()
 

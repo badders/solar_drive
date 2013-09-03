@@ -7,6 +7,7 @@ from datetime import datetime
 import math
 import solar
 import logging
+import time
 from functools import wraps
 from common import *
 
@@ -26,68 +27,6 @@ class Responses:
     Repsonse codes for recieving data from the telescope thread
     """
     SET_RA, SET_DEC, SLEW_FINISHED = range(3)
-
-
-def track_action(properties):
-    """
-    Actually peform the telescope tracking
-
-    propeties - A TrackPRroperties object
-
-    Algorithm:
-    1. Check RA/Dec are where we expect, if not slew
-    2. Start smoothly tracking for appoximately 7 seconds as follow:
-        - Check if the encoders say we have dropped behind or gone too far and compensate
-        - Work out how much we should have turned in the time passed
-        - Turn the motors for this amount
-    """
-    target = sun_ra(properties.longitude) + properties.tune_longitude
-    target_dec = sun_dec(properties.latitude) + properties.tune_latitude
-
-    # Adjust declination in case of fine tuning
-    if abs(target_dec - properties.dec) > solar.ARCSEC_PER_ENC:
-        solar.adjust_dec(target_dec - properties.dec)
-        conn.send([Responses.SET_DEC, target_dec])
-
-    # If RA is off by more than an encode step (1.44 seconds) then slew
-    if abs(target - properties.ra) > solar.SEC_PER_ENC:
-        solar.adjust_ra_sec(target - properties.ra)
-        logging.debug('Compensating for RA adjustment by {}s'.format(target - properties.ra))
-        properties.ra = target
-        properties.conn.send([Responses.SET_RA, properties.ra])
-
-    # Otherwise smoothly track for about 7 seconds
-    time_tracked = 0
-    start = datetime.utcnow()
-    enc_tracked = 0
-    enc_start = solar.current_position(solar.Devices.body)
-    start_ra = properties.ra
-
-    while(time_tracked < 10):
-        now = datetime.utcnow()
-        dt = (now - start).total_seconds()
-        enc_expected = math.floor(dt / solar.SEC_PER_ENC)
-        enc_error = enc_expected - enc_tracked
-        turns = (dt - time_tracked) // solar.SEC_PER_STEP
-
-        # Check encoders report the position we expect, otherwise compensate
-        if enc_error > 1:
-            # Large slip, so attempt to catch up
-            turns += (enc_error - 1) * solar.STEPS_PER_ENC
-        if enc_error > 0:
-            # Small error, could be as little as one microstep so add small slip factor to catch up
-            turns += solar.SLIP_FACTOR
-        elif enc_error < 0:
-            # Overstepped, just dont turn for this cycle
-            turns = 0
-
-        if turns > 0:
-            solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
-            enc_tracked = int(solar.Telescope().readline()) - enc_start
-            time_tracked = dt
-            logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
-            properties.ra = start_ra + enc_tracked * solar.SEC_PER_ENC
-            properties.conn.send([Responses.SET_RA, properties.ra])
 
 
 def slew_to_sun(properties):
@@ -153,8 +92,55 @@ class TrackProperties:
     connection = None
 
 
-def track_process(proerties):
-    pass
+def track_process(properties):
+    time_tracked = 0
+    start = datetime.utcnow()
+    enc_tracked = 0
+    enc_start = solar.current_position(solar.Devices.body)
+    start_ra = properties.ra
+    dt = 0
+
+    while True:
+        # Process any available messages
+        while properties.conn.poll():
+            msg = properties.conn.recv()
+            cmd, args = msg[0], msg[1:]
+
+            if cmd == Commands.CANCEL_TRACK:
+                return
+            elif cmd == Commands.FINE_TUNE:
+                tune_longitude = args[0][0]
+                tune_latitude = args[0][0]
+                properties.tune_longitude = tune_longitude
+                properties.tune_latitude = tune_latitude
+            else:
+                raise NotImplementedError
+
+        # Do Tracking
+        now = datetime.utcnow()
+        dt = (now - start).total_seconds()
+        enc_expected = math.floor(dt / solar.SEC_PER_ENC)
+        enc_error = enc_expected - enc_tracked
+        turns = (dt - time_tracked) // solar.SEC_PER_STEP
+
+        # Check encoders report the position we expect, otherwise compensate
+        if enc_error > 1:
+            # Large slip, so attempt to catch up
+            turns += (enc_error - 1) * solar.STEPS_PER_ENC
+        if enc_error > 0:
+            # Small error, could be as little as one microstep so add small slip factor to catch up
+            turns += solar.SLIP_FACTOR
+        elif enc_error < 0:
+            # Overstepped, just dont turn for this cycle
+            turns = 0
+
+        if turns > 0:
+            solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
+            enc_tracked = int(solar.Telescope().readline()) - enc_start
+            time_tracked = dt
+            logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
+            properties.ra = start_ra + enc_tracked * solar.SEC_PER_ENC
+            properties.conn.send([Responses.SET_RA, properties.ra])
 
 
 def thread_process(conn):
@@ -173,21 +159,14 @@ def thread_process(conn):
 
     properties = TrackProperties()
     properties.conn = conn
-    tracking = False
 
     while True:
-        if not tracking:
-            msg = conn.recv()
-            cmd, args = msg[0], msg[1:]
-        else:
-            while conn.poll():
-                msg = conn.recv()
-                cmd, args = msg[0], msg[1:]
+        msg = conn.recv()
+        cmd, args = msg[0], msg[1:]
 
         if cmd == Commands.TERMINATE:
             return
         elif cmd == Commands.SLEW_TO_SUN:
-            assert(not tracking)
             slew_to_sun(properties)
         elif cmd == Commands.SLEW_RA:
             arcsec = args[0]
@@ -200,11 +179,9 @@ def thread_process(conn):
         elif cmd == Commands.SET_LONG:
             properties.longitude = args[0]
         elif cmd == Commands.SET_RA:
-            if not tracking:
-                properties.ra = args[0]
+            properties.ra = args[0]
         elif cmd == Commands.SET_DEC:
-            if not tracking:
-                properties.dec = args[0]
+            properties.dec = args[0]
         elif cmd == Commands.FINE_TUNE:
             properties.tune_longitude = args[0][0]
             properties.tune_latitude = args[0][1]
@@ -223,14 +200,9 @@ def thread_process(conn):
             conn.send([Responses.SET_RA, properties.ra])
             conn.send([Responses.SET_DEC, properties.dec])
         elif cmd == Commands.TRACK:
-            tracking = True
-        elif cmd == Commands.CANCEL_TRACK:
-            tracking = False
+            track_process(properties)
         else:
             raise NotImplementedError
-
-        if tracking:
-            track_action(properties)
 
 
 class TelescopeManager(Process):
