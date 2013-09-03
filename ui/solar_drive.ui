@@ -456,8 +456,11 @@
                <property name="maximum">
                 <double>20000.000000000000000</double>
                </property>
+               <property name="singleStep">
+                <double>100.000000000000000</double>
+               </property>
                <property name="value">
-                <double>60.000000000000000</double>
+                <double>600.000000000000000</double>
                </property>
               </widget>
              </item>
@@ -545,7 +548,7 @@
              <item>
               <widget class="QPushButton" name="setSun">
                <property name="enabled">
-                <bool>false</bool>
+                <bool>true</bool>
                </property>
                <property name="text">
                 <string>Set as Sun Location</string>

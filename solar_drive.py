@@ -57,6 +57,7 @@ class SolarDriverApp(QtGui.QApplication):
         ui.decLeft.clicked.connect(self.decLeft)
         ui.decRight.clicked.connect(self.decRight)
         ui.setZero.clicked.connect(self.telescope.set_zero)
+        ui.setSun.clicked.connect(self.telescope.set_sun)
 
         self.aboutToQuit.connect(self.terminating)
         self.load_config()

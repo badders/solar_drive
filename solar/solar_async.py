@@ -18,7 +18,7 @@ class Commands:
     SET_RA, SET_DEC, SET_LAT, SET_LONG, \
         TRACK, CANCEL_TRACK, \
         TERMINATE, FINE_TUNE, \
-        SLEW_RA, SLEW_DEC, SLEW_TO_SUN, SET_ZERO = range(12)
+        SLEW_RA, SLEW_DEC, SLEW_TO_SUN, SET_ZERO, SET_SUN = range(13)
 
 
 class Responses:
@@ -46,7 +46,7 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         - Work out how much we should have turned in the time passed
         - Turn the motors for this amount
     """
-    """target = sun_ra(longitude) + tune[0]
+    target = sun_ra(longitude) + tune[0]
     target_dec = sun_dec(latitude) + tune[1]
 
     # Adjust declination in case of fine tuning
@@ -60,7 +60,7 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         logging.debug('Compensating for RA adjustment by {}s'.format(target - ra))
         ra = target
         conn.send([Responses.SET_RA, ra])
-    """
+
     # Otherwise smoothly track for about 7 seconds
     time_tracked = 0
     start = datetime.utcnow()
@@ -119,7 +119,7 @@ def slew_to_sun(conn, latitude, longitude, ra, dec):
     As slewing can take a long time, might need to slew some more to catch
     up with the Sun
     """
-    while abs(sra - ra) > solar.SEC_PER_ENC:
+    while abs(sra - ra) > 2 * solar.SEC_PER_ENC:
         solar.adjust_ra_sec(sra - ra)
         ra = sra
         conn.send([Responses.SET_RA, ra])
@@ -218,6 +218,13 @@ def thread_process(conn):
             conn.send([Responses.SET_RA, 0])
             conn.send([Responses.SET_DEC, 0])
             ra, dec = 0, 0
+        elif cmd == Commands.SET_SUN:
+            logging.info('Setting as Sun Position')
+            solar.reset_zero()
+            ra = sun_ra(longitude)
+            dec = sun_dec(latitude)
+            conn.send([Responses.SET_RA, ra])
+            conn.send([Responses.SET_DEC, dec])
         elif cmd == Commands.TRACK:
             tracking = True
         elif cmd == Commands.CANCEL_TRACK:
@@ -365,6 +372,9 @@ class TelescopeManager(Process):
 
     def set_zero(self):
         self.conn.send([Commands.SET_ZERO])
+
+    def set_sun(self):
+        self.conn.send([Commands.SET_SUN])
 
     @not_tracking
     def start_tracking(self):
