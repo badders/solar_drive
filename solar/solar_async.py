@@ -28,16 +28,11 @@ class Responses:
     SET_RA, SET_DEC, SLEW_FINISHED = range(3)
 
 
-def track_action(conn, latitude, longitude, ra, dec, tune):
+def track_action(properties):
     """
     Actually peform the telescope tracking
 
-    conn -- The pipe connection to communicate position changes
-    latitude -- Current latitude
-    longitude -- Current longiture
-    ra -- Current right ascension of telescope
-    dec -- Current declination of telescope
-    tune -- [RA, Dec] manual fine tuning adjustment
+    propeties - A TrackPRroperties object
 
     Algorithm:
     1. Check RA/Dec are where we expect, if not slew
@@ -46,27 +41,27 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         - Work out how much we should have turned in the time passed
         - Turn the motors for this amount
     """
-    target = sun_ra(longitude) + tune[0]
-    target_dec = sun_dec(latitude) + tune[1]
+    target = sun_ra(properties.longitude) + properties.tune_longitude
+    target_dec = sun_dec(properties.latitude) + properties.tune_latitude
 
     # Adjust declination in case of fine tuning
-    if abs(target_dec - dec) > solar.ARCSEC_PER_ENC:
-        solar.adjust_dec(target_dec - dec)
+    if abs(target_dec - properties.dec) > solar.ARCSEC_PER_ENC:
+        solar.adjust_dec(target_dec - properties.dec)
         conn.send([Responses.SET_DEC, target_dec])
 
     # If RA is off by more than an encode step (1.44 seconds) then slew
-    if abs(target - ra) > solar.SEC_PER_ENC:
-        solar.adjust_ra_sec(target - ra)
-        logging.debug('Compensating for RA adjustment by {}s'.format(target - ra))
-        ra = target
-        conn.send([Responses.SET_RA, ra])
+    if abs(target - properties.ra) > solar.SEC_PER_ENC:
+        solar.adjust_ra_sec(target - properties.ra)
+        logging.debug('Compensating for RA adjustment by {}s'.format(target - properties.ra))
+        properties.ra = target
+        properties.conn.send([Responses.SET_RA, properties.ra])
 
     # Otherwise smoothly track for about 7 seconds
     time_tracked = 0
     start = datetime.utcnow()
     enc_tracked = 0
     enc_start = solar.current_position(solar.Devices.body)
-    start_ra = ra
+    start_ra = properties.ra
 
     while(time_tracked < 10):
         now = datetime.utcnow()
@@ -75,7 +70,7 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
         enc_error = enc_expected - enc_tracked
         turns = (dt - time_tracked) // solar.SEC_PER_STEP
 
-        # Check encoders report the position we expect, otherwise compensat
+        # Check encoders report the position we expect, otherwise compensate
         if enc_error > 1:
             # Large slip, so attempt to catch up
             turns += (enc_error - 1) * solar.STEPS_PER_ENC
@@ -91,72 +86,75 @@ def track_action(conn, latitude, longitude, ra, dec, tune):
             enc_tracked = int(solar.Telescope().readline()) - enc_start
             time_tracked = dt
             logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
-            ra = start_ra + enc_tracked * solar.SEC_PER_ENC
-            conn.send([Responses.SET_RA, ra])
-
-    return ra, dec
+            properties.ra = start_ra + enc_tracked * solar.SEC_PER_ENC
+            properties.conn.send([Responses.SET_RA, properties.ra])
 
 
-def slew_to_sun(conn, latitude, longitude, ra, dec):
+def slew_to_sun(properties):
     """
     Perform a slew to the suns location
 
-    conn -- The pipe connection to communicate position changes
-    latitude -- Current latitude
-    longitude -- Current longiture
-    ra -- Current right ascension of telescope
-    dec -- Current declination of telescope
+    properties - A TrackProperties object
     """
-    sdec = sun_dec(latitude)
-    sra = sun_ra(longitude)
+    sdec = sun_dec(properties.latitude)
+    sra = sun_ra(properties.longitude)
 
     logging.info('Sun at: {} {}'.format(ra_to_str(sra), dec_to_str(sdec)))
 
-    solar.adjust_dec(sdec - dec)
-    conn.send([Responses.SET_DEC, sdec])
+    solar.adjust_dec(sdec - properties.dec)
+    properties.conn.send([Responses.SET_DEC, sdec])
 
     """
     As slewing can take a long time, might need to slew some more to catch
     up with the Sun
     """
-    while abs(sra - ra) > 2 * solar.SEC_PER_ENC:
-        solar.adjust_ra_sec(sra - ra)
-        ra = sra
-        conn.send([Responses.SET_RA, ra])
-        sra = sun_ra(longitude)
+    while abs(sra - properties.ra) > 2 * solar.SEC_PER_ENC:
+        solar.adjust_ra_sec(sra - properties.ra)
+        properties.ra = sra
+        properties.conn.send([Responses.SET_RA, properties.ra])
+        sra = sun_ra(properties.longitude)
 
-    conn.send([Responses.SLEW_FINISHED])
-    return ra, sdec
+    properties.conn.send([Responses.SLEW_FINISHED])
 
 
-def slew_ra(conn, ra, arcsec):
+def slew_ra(properties, arcsec):
     """
     Slew the right ascension of the telescope
 
-    conn -- The pipe connection to communicate position changes
-    ra -- Current right ascension of telescope
+    properties - A TrackProperties object
     arcsec -- Arc seconds to slew by
     """
     solar.adjust_ra(arcsec)
-    ra += arcsec / 15
-    conn.send([Responses.SET_RA, ra])
-    conn.send([Responses.SLEW_FINISHED])
-    return ra
+    properties.ra += arcsec / 15
+    properties.conn.send([Responses.SET_RA, properties.ra])
+    properties.conn.send([Responses.SLEW_FINISHED])
 
 
-def slew_dec(conn, dec, arcsec):
+def slew_dec(properties, arcsec):
     """
     Slew the declination of the telescope
 
-    conn -- The pipe connection to communicate position changes
-    dec -- Current declination of telescope
+    properties - A TrackProperties object
     arcsec -- Arc seconds to slew by
     """
     solar.adjust_dec(arcsec)
-    dec += arcsec
-    conn.send([Responses.SET_DEC, dec])
-    conn.send([Responses.SLEW_FINISHED])
-    return dec
+    properties.dec += arcsec
+    properties.conn.send([Responses.SET_DEC, properties.dec])
+    properties.conn.send([Responses.SLEW_FINISHED])
+
+
+class TrackProperties:
+    ra = 0
+    dec = 0
+    latitude = 0
+    longitude = 0
+    tune_latitude = 0
+    tune_longitude = 0
+    connection = None
+
+
+def track_process(proerties):
+    pass
 
 
 def thread_process(conn):
@@ -173,11 +171,8 @@ def thread_process(conn):
     solar.connect()
     solar.log_constants()
 
-    latitude = 0
-    longitude = 0
-    ra = 0
-    dec = 0
-    tune = [0.0, 0.0]
+    properties = TrackProperties()
+    properties.conn = conn
     tracking = False
 
     while True:
@@ -193,38 +188,40 @@ def thread_process(conn):
             return
         elif cmd == Commands.SLEW_TO_SUN:
             assert(not tracking)
-            ra, dec = slew_to_sun(conn, latitude, longitude, ra, dec)
+            slew_to_sun(properties)
         elif cmd == Commands.SLEW_RA:
             arcsec = args[0]
-            ra = slew_ra(conn, ra, arcsec)
+            slew_ra(properties, arcsec)
         elif cmd == Commands.SLEW_DEC:
             arcsec = args[0]
-            dec = slew_dec(conn, dec, arcsec)
+            slew_dec(properties, arcsec)
         elif cmd == Commands.SET_LAT:
-            latitude = args[0]
+            properties.latitude = args[0]
         elif cmd == Commands.SET_LONG:
-            longitude = args[0]
+            properties.longitude = args[0]
         elif cmd == Commands.SET_RA:
             if not tracking:
-                ra = args[0]
+                properties.ra = args[0]
         elif cmd == Commands.SET_DEC:
             if not tracking:
-                dec = args[0]
+                properties.dec = args[0]
         elif cmd == Commands.FINE_TUNE:
-            tune = args[0]
+            properties.tune_longitude = args[0][0]
+            properties.tune_latitude = args[0][1]
         elif cmd == Commands.SET_ZERO:
             logging.info('Setting as zero')
             solar.reset_zero()
             conn.send([Responses.SET_RA, 0])
             conn.send([Responses.SET_DEC, 0])
-            ra, dec = 0, 0
+            properties.ra = 0
+            properties.dec = 0
         elif cmd == Commands.SET_SUN:
             logging.info('Setting as Sun Position')
             solar.reset_zero()
-            ra = sun_ra(longitude)
-            dec = sun_dec(latitude)
-            conn.send([Responses.SET_RA, ra])
-            conn.send([Responses.SET_DEC, dec])
+            properties.ra = sun_ra(properties.longitude)
+            properties.dec = sun_dec(properties.latitude)
+            conn.send([Responses.SET_RA, properties.ra])
+            conn.send([Responses.SET_DEC, properties.dec])
         elif cmd == Commands.TRACK:
             tracking = True
         elif cmd == Commands.CANCEL_TRACK:
@@ -233,7 +230,7 @@ def thread_process(conn):
             raise NotImplementedError
 
         if tracking:
-            ra, dec = track_action(conn, latitude, longitude, ra, dec, tune)
+            track_action(properties)
 
 
 class TelescopeManager(Process):
