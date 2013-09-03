@@ -7,7 +7,6 @@ from datetime import datetime
 import math
 import solar
 import logging
-import time
 from functools import wraps
 from common import *
 

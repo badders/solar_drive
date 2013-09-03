@@ -32,12 +32,8 @@ class SolarDriverApp(QtGui.QApplication):
         self.telescope = solar.TelescopeManager()
         self.telescope.start()
 
-        self.telescope.latitude = self.ui.latitude.value()
-        self.telescope.longitude = self.ui.longitude.value()
-
-        #self.ui.latitude.valueChanged.connect(self.telescope.latitude.fset)
-        #self.ui.longitude.valueChanged.connect(self.telescope.longitude.fset)
-
+        self.ui.latitude.valueChanged.connect(self.set_latitude)
+        self.ui.longitude.valueChanged.connect(self.set_longitude)
         self.ui.raAdjust.valueChanged.connect(self.tune)
         self.ui.decAdjust.valueChanged.connect(self.tune)
 
@@ -77,6 +73,8 @@ class SolarDriverApp(QtGui.QApplication):
         settings.beginGroup('Position')
         self.telescope.ra = settings.value('ra', 0).toPyObject()
         self.telescope.dec = settings.value('dec', 0).toPyObject()
+        self.telescope.latitude = settings.value('lat', self.ui.latitude.value()).toPyObject()
+        self.telescope.longitude = settings.value('long', self.ui.longitude.value()).toPyObject()
         settings.endGroup()
 
     def save_config(self):
@@ -87,6 +85,14 @@ class SolarDriverApp(QtGui.QApplication):
         settings.beginGroup('Position')
         settings.setValue('ra', self.telescope.ra)
         settings.setValue('dec', self.telescope.dec)
+        settings.setValue('lat', self.telescope.latitude)
+        settings.setValue('lat', self.telescope.longitude)
+
+    def set_latitude(self, value):
+        self.telescope.latitude = value
+
+    def set_longitude(self, value):
+        self.telescope.longitude = value
 
     def raLeft(self):
         arc = self.ui.calArcSec.value()

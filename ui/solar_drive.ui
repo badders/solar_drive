@@ -46,7 +46,7 @@
           <item row="5" column="0">
            <widget class="QLabel" name="label_8">
             <property name="text">
-             <string>Dec:</string>
+             <string>Altitude:</string>
             </property>
            </widget>
           </item>
@@ -137,7 +137,7 @@
           <item row="4" column="0">
            <widget class="QLabel" name="label_7">
             <property name="text">
-             <string>RA:</string>
+             <string>Azimuth:</string>
             </property>
            </widget>
           </item>
@@ -232,7 +232,7 @@
              <item>
               <widget class="QLabel" name="label_9">
                <property name="text">
-                <string>Adjust Tracking RA:</string>
+                <string>Adjust Tracking AZ:</string>
                </property>
               </widget>
              </item>
@@ -258,7 +258,7 @@
              <item>
               <widget class="QLabel" name="label_10">
                <property name="text">
-                <string>Adjust Tracking Dec:</string>
+                <string>Adjust Tracking Alt:</string>
                </property>
               </widget>
              </item>
@@ -469,7 +469,7 @@
                <item>
                 <widget class="QLabel" name="label_13">
                  <property name="text">
-                  <string>RA:</string>
+                  <string>Azimuth:</string>
                  </property>
                 </widget>
                </item>
@@ -506,7 +506,7 @@
                <item>
                 <widget class="QLabel" name="label_14">
                  <property name="text">
-                  <string>Dec:</string>
+                  <string>Altitude:</string>
                  </property>
                 </widget>
                </item>
