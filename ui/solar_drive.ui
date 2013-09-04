@@ -118,7 +118,7 @@
            </spacer>
           </item>
           <item row="5" column="1">
-           <widget class="QLineEdit" name="decDisplay">
+           <widget class="QLineEdit" name="altDisplay">
             <property name="frame">
              <bool>true</bool>
             </property>
@@ -181,7 +181,7 @@
            </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QLineEdit" name="raDisplay">
+           <widget class="QLineEdit" name="azDisplay">
             <property name="frame">
              <bool>true</bool>
             </property>
@@ -237,7 +237,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QDoubleSpinBox" name="raAdjust">
+              <widget class="QDoubleSpinBox" name="azAdjust">
                <property name="prefix">
                 <string/>
                </property>
@@ -263,7 +263,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QDoubleSpinBox" name="decAdjust">
+              <widget class="QDoubleSpinBox" name="altAdjust">
                <property name="suffix">
                 <string> Arcsec</string>
                </property>
@@ -474,7 +474,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QToolButton" name="raLeft">
+                <widget class="QToolButton" name="azLeft">
                  <property name="text">
                   <string>...</string>
                  </property>
@@ -487,7 +487,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QToolButton" name="raRight">
+                <widget class="QToolButton" name="azRight">
                  <property name="text">
                   <string>...</string>
                  </property>
@@ -511,7 +511,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QToolButton" name="decLeft">
+                <widget class="QToolButton" name="altLeft">
                  <property name="text">
                   <string>...</string>
                  </property>
@@ -524,7 +524,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QToolButton" name="decRight">
+                <widget class="QToolButton" name="altRight">
                  <property name="text">
                   <string>...</string>
                  </property>

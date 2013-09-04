@@ -31,8 +31,8 @@ class Directions:
     anti_clockwise = 'A'
 
 arduino = {
-    'ip' : '192.168.2.2',
-    'port' : 8010
+    'ip': '192.168.2.2',
+    'port': 8010
 }
 
 MOTOR_STEP_SIZE = 1.8  # degrees per step
@@ -45,11 +45,10 @@ ENCS_PER_REV = 10000 * GEAR_RATIO
 STEPS_PER_REV = (360. / STEP_SIZE) * GEAR_RATIO
 
 STEPS_PER_ENC = STEPS_PER_REV / ENCS_PER_REV
-SEC_PER_STEP = (24 * 60 * 60) / STEPS_PER_REV
 ARCSEC_PER_STEP = (360 * 60 * 60) / STEPS_PER_REV
-
-SEC_PER_ENC = SEC_PER_STEP * STEPS_PER_ENC
 ARCSEC_PER_ENC = ARCSEC_PER_STEP * STEPS_PER_ENC
+SEC_PER_STEP = (24 * 60 * 60) / STEPS_PER_REV
+SEC_PER_ENC = SEC_PER_STEP * STEPS_PER_ENC
 
 SLIP_FACTOR = STEPS_PER_ENC / 10
 
@@ -174,21 +173,9 @@ def turn(motor, direction, enc_turns):
     # Adjust for over turn
 
 
-def adjust_ra_sec(seconds):
+def adjust_az(arcsec):
     """
-    Adjust the ra in seconds
-    """
-    turns = seconds / SEC_PER_ENC
-    if turns < 0:
-        direc = Directions.anti_clockwise
-    else:
-        direc = Directions.clockwise
-    turn(Devices.body, direc, abs(turns))
-
-
-def adjust_ra(arcsec):
-    """
-    Adjust the ra by arcseconds
+    Adjust the azimuth by arcseconds
     """
     turns = arcsec / ARCSEC_PER_ENC
     if turns < 0:
@@ -198,9 +185,9 @@ def adjust_ra(arcsec):
     turn(Devices.body, direc, abs(turns))
 
 
-def adjust_dec(arcsec):
+def adjust_alt(arcsec):
     """
-    Adjust the declination by arcsec
+    Adjust the altitude by arcsec
     """
     turns = arcsec / ARCSEC_PER_ENC
     if turns < 0:
@@ -221,57 +208,3 @@ def log_constants():
     logging.info('Motor steps per encode tick: {}'.format(STEPS_PER_ENC))
     logging.info('Arcsec per motor step: {}'.format(ARCSEC_PER_STEP))
     logging.info('Arcsec per encoder step: {}'.format(ARCSEC_PER_ENC))
-    logging.info('Seconds per encoder step: {}'.format(SEC_PER_ENC))
-
-if __name__ == '__main__':
-    # Test tracking algorithm ideas
-    def smooth_track_ra(seconds):
-        logging.debug('Tracking RA:')
-        start = datetime.now()
-        start_enc = current_position(Devices.body)
-        time_tracked = 0
-        enc_tracked = 0
-        logging.debug('Smooth tracking for: {}s'.format(seconds))
-        while(time_tracked < seconds):
-            now = datetime.now()
-            dt = (now - start).total_seconds()
-
-            enc_expected = math.floor(dt / SEC_PER_ENC)
-            enc_error = enc_expected - (enc_tracked - start_enc)
-
-            turns = (dt - time_tracked) / SEC_PER_STEP
-
-            if enc_error > 1:
-                turns += (STEPS_PER_ENC - 1) * enc_error
-            elif enc_error > 0:
-                turns += SLIP_FACTOR
-            elif enc_error < 0:
-                turns = -1
-
-            if turns > 0:
-                Telescope().send_command('T{}{}{}'.format(Devices.body, Directions.clockwise, int(turns)))
-                enc_tracked = int(Telescope().readline())
-                logging.debug('Elapsed: {:6.2f} Turns: {:5.2f} Error: {}'.format(dt, turns, int(enc_error)))
-
-            time_tracked = dt
-
-    def naive_track_ra(seconds):
-        start = datetime.now()
-        tracked = 0
-        while(tracked < seconds):
-            now = datetime.now()
-            error = (now - start).total_seconds() - tracked
-            logging.debug('Elapsed: {:.2}\tTracked: {:.2}\tError: {}'.format((now - start).total_seconds(), tracked, error))
-            # now track for a second
-            track_time = int(error + SEC_PER_ENC)
-            if track_time > 0:
-                adjust_ra(track_time)
-                tracked = tracked + track_time
-            time.sleep(SEC_PER_STEP)
-
-    logging.basicConfig(level=logging.DEBUG)
-    log_constants()
-    connect()
-    reset_zero()
-    smooth_track_ra(7200)
-    #naive_track_ra(240)

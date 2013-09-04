@@ -34,8 +34,8 @@ class SolarDriverApp(QtGui.QApplication):
 
         self.ui.latitude.valueChanged.connect(self.set_latitude)
         self.ui.longitude.valueChanged.connect(self.set_longitude)
-        self.ui.raAdjust.valueChanged.connect(self.tune)
-        self.ui.decAdjust.valueChanged.connect(self.tune)
+        self.ui.azAdjust.valueChanged.connect(self.tune)
+        self.ui.altAdjust.valueChanged.connect(self.tune)
 
         ui.show()
         ui.raise_()
@@ -48,10 +48,10 @@ class SolarDriverApp(QtGui.QApplication):
         ui.findSun.clicked.connect(self.find_sun)
         ui.zeroReturn.clicked.connect(self.return_to_zero)
 
-        ui.raLeft.clicked.connect(self.raLeft)
-        ui.raRight.clicked.connect(self.raRight)
-        ui.decLeft.clicked.connect(self.decLeft)
-        ui.decRight.clicked.connect(self.decRight)
+        ui.azLeft.clicked.connect(self.azLeft)
+        ui.azRight.clicked.connect(self.azRight)
+        ui.altLeft.clicked.connect(self.altLeft)
+        ui.altRight.clicked.connect(self.altRight)
         ui.setZero.clicked.connect(self.telescope.set_zero)
         ui.setSun.clicked.connect(self.telescope.set_sun)
 
@@ -71,8 +71,8 @@ class SolarDriverApp(QtGui.QApplication):
         """
         settings = QtCore.QSettings('Solar Control', 'solar_drive')
         settings.beginGroup('Position')
-        self.telescope.ra = settings.value('ra', 0).toPyObject()
-        self.telescope.dec = settings.value('dec', 0).toPyObject()
+        self.telescope.az = settings.value('az', 0).toPyObject()
+        self.telescope.alt = settings.value('alt', 0).toPyObject()
         self.telescope.latitude = settings.value('lat', self.ui.latitude.value()).toPyObject()
         self.telescope.longitude = settings.value('long', self.ui.longitude.value()).toPyObject()
         settings.endGroup()
@@ -83,8 +83,8 @@ class SolarDriverApp(QtGui.QApplication):
         """
         settings = QtCore.QSettings('Solar Control', 'solar_drive')
         settings.beginGroup('Position')
-        settings.setValue('ra', self.telescope.ra)
-        settings.setValue('dec', self.telescope.dec)
+        settings.setValue('az', self.telescope.az)
+        settings.setValue('alt', self.telescope.alt)
         settings.setValue('lat', self.telescope.latitude)
         settings.setValue('lat', self.telescope.longitude)
 
@@ -94,21 +94,21 @@ class SolarDriverApp(QtGui.QApplication):
     def set_longitude(self, value):
         self.telescope.longitude = value
 
-    def raLeft(self):
+    def azLeft(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.slew_ra(-arc)
+        self.telescope.slew_az(-arc)
 
-    def raRight(self):
+    def azRight(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.slew_ra(arc)
+        self.telescope.slew_az(arc)
 
-    def decLeft(self):
+    def altLeft(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.slew_dec(-arc)
+        self.telescope.slew_alt(-arc)
 
-    def decRight(self):
+    def altRight(self):
         arc = self.ui.calArcSec.value()
-        self.telescope.slew_dec(arc)
+        self.telescope.slew_alt(arc)
 
     def track(self):
         if self.telescope.tracking:
@@ -128,9 +128,9 @@ class SolarDriverApp(QtGui.QApplication):
         self.telescope.return_to_zero()
 
     def tune(self):
-        t_ra = self.ui.raAdjust.value()
-        t_dec = self.ui.decAdjust.value()
-        self.telescope.tune([t_ra, t_dec])
+        t_az = self.ui.azAdjust.value()
+        t_alt = self.ui.altAdjust.value()
+        self.telescope.tune([t_az, t_alt])
 
     def update_time(self):
         """
@@ -151,8 +151,8 @@ class SolarDriverApp(QtGui.QApplication):
         qmst = QtCore.QTime(mst.hour, mst.minute, mst.second)
         self.ui.solarTime.setTime(qmst)
 
-        self.ui.raDisplay.setText(solar.ra_to_str(self.telescope.ra))
-        self.ui.decDisplay.setText(solar.dec_to_str(self.telescope.dec))
+        self.ui.azDisplay.setText(solar.az_to_str(self.telescope.az))
+        self.ui.altDisplay.setText(solar.alt_to_str(self.telescope.alt))
 
 if __name__ == '__main__':
     app = SolarDriverApp()
