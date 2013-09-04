@@ -137,7 +137,7 @@ def track_process(properties):
             solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
             enc_tracked = int(solar.Telescope().readline()) - enc_start
             time_tracked = dt
-            logging.info('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
+            logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
             properties.az = start_az + enc_tracked * solar.ARCSEC_PER_ENC
             properties.conn.send([Responses.SET_AZ, properties.az])
 

@@ -89,6 +89,7 @@ class Telescope:
     def connect(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect((arduino['ip'], arduino['port']))
+        self.client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
 
     @connected
     def disconnect(self, device):
