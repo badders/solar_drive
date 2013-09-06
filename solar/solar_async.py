@@ -34,8 +34,8 @@ def slew_to_sun(properties):
 
     properties - A TrackProperties object
     """
-    s_alt = sun_alt(properties.latitude)
-    s_az = sun_az(properties.longitude)
+    s_alt = sun_alt(properties.longitude, properties.latitude)
+    s_az = sun_az(properties.longitude, properties.latitude)
 
     logging.info('Sun at: {} {}'.format(az_to_str(s_az), alt_to_str(s_alt)))
 
@@ -50,7 +50,7 @@ def slew_to_sun(properties):
         solar.adjust_alt(s_az - properties.az)
         properties.az = s_az
         properties.conn.send([Responses.SET_AZ, properties.az])
-        s_az = sun_az(properties.longitude)
+        s_az = sun_az(properties.longitude, properties.latitude)
 
     properties.conn.send([Responses.SLEW_FINISHED])
 
@@ -194,8 +194,8 @@ def thread_process(conn):
         elif cmd == Commands.SET_SUN:
             logging.info('Setting as Sun Position')
             solar.reset_zero()
-            properties.az = sun_az(properties.longitude)
-            properties.alt = sun_alt(properties.latitude)
+            properties.az = sun_az(properties.longitude, properties.latitude)
+            properties.alt = sun_alt(properties.longitude, properties.latitude)
             conn.send([Responses.SET_AZ, properties.az])
             conn.send([Responses.SET_ALT, properties.alt])
         elif cmd == Commands.TRACK:

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
+import Pysolar as pysol
 
 
 def az_to_str(arcsec):
@@ -38,20 +39,21 @@ def mean_solar_time(longitude):
     return mst
 
 
-def sun_az(longitude):
+def sun_az(longitude, latitude):
     """
     Calculate the azimuth of the sun
     longitude -- Current longitude
+    latitude -- Current latitude
     Returns the Sun's azimuth in arcseconds
     """
-    mst = mean_solar_time(longitude)
-    return timedelta(hours=mst.hour - 12, minutes=mst.minute, seconds=mst.second).total_seconds() * 15
+    return pysol.GetAzimuth(latitude, longitude, datetime.utcnow()) * 3600
 
 
-def sun_alt(latitude):
+def sun_alt(longitude, latitude):
     """
     Calculate the altitude of the Sun
     longitude -- Current longitude
-    Returns the Sun's altitude in seconds
+    latitude -- Current latitude
+    Returns the Sun's altitude in arcseconds
     """
-    return (90. - latitude) * 3600
+    return pysol.GetAltitude(latitude, longitude, datetime.utcnow()) * 3600
