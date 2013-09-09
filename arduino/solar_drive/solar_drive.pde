@@ -71,7 +71,8 @@ over ethernet. The arduino has:
 #include "Encoder.h"
 #include <Ethernet.h>
 
-#define STEP_DELAY_uS 50
+#define STEP_DELAY_uS_FAST 50
+#define STEP_DELAY_uS_TRACK 1500
 #define ENCODER_PAUSE_mS 100
 #define SYNC_PAUSE_mS 100
 
@@ -181,12 +182,16 @@ void perform_turn(Client &client) {
     }
 
     int steps = parse_int(client);
-
+    int step_delay = STEP_DELAY_uS_TRACK;
+    
+    if(steps > 100)
+        step_delay = STEP_DELAY_uS_FAST;
+        
     for(int i=0; i < steps; i++) {
         digitalWrite(m->clock, HIGH);
-        delayMicroseconds(STEP_DELAY_uS);
+        delayMicroseconds(step_delay);
         digitalWrite(m->clock, LOW);
-        delayMicroseconds(STEP_DELAY_uS);
+        delayMicroseconds(step_delay);
     }
 
     delay(ENCODER_PAUSE_mS);
