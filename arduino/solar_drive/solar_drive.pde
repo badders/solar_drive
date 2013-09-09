@@ -228,9 +228,6 @@ void loop() {
         while (client.available() > 0) {
             char command = blocking_read(client);
 
-            Serial.print("Command: ");
-            Serial.println(command);
-
             switch(command) {
             case '\n': // Catch any extra newlines
                 break;

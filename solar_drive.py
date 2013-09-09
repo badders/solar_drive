@@ -55,6 +55,8 @@ class SolarDriverApp(QtGui.QApplication):
         ui.setZero.clicked.connect(self.telescope.set_zero)
         ui.setSun.clicked.connect(self.telescope.set_sun)
 
+        ui.setZero.hide()
+        
         self.aboutToQuit.connect(self.terminating)
         self.load_config()
 

@@ -171,7 +171,6 @@ def turn(motor, direction, enc_turns):
         raw_turns = int(max(raw_turns, STEPS_PER_ENC / 4))
         completed = _raw_turn(motor, direction, raw_turns)
         dt -= completed
-    # Adjust for over turn
 
 
 def adjust_az(arcsec):

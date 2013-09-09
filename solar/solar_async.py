@@ -7,6 +7,7 @@ from datetime import datetime
 import math
 import solar
 import logging
+import time
 from functools import wraps
 from common import *
 
@@ -90,10 +91,9 @@ class TrackProperties:
     tune_longitude = 0
     connection = None
 
-
 def track_process(properties):
-    time_tracked = 0
     start = datetime.utcnow()
+    time_tracked = 0
     enc_tracked = 0
     enc_start = solar.current_position(solar.Devices.body)
     start_az = properties.az
@@ -115,32 +115,32 @@ def track_process(properties):
             else:
                 raise NotImplementedError
 
-        # Do Tracking
+        # Now do tracking
         now = datetime.utcnow()
         dt = (now - start).total_seconds()
-        enc_expected = math.floor(dt / solar.SEC_PER_ENC)
-        enc_error = enc_expected - enc_tracked
-        turns = (dt - time_tracked) // solar.SEC_PER_STEP
+        enc_expected = dt / solar.SEC_PER_ENC
+        enc_error = math.floor(enc_expected - enc_tracked)
+        turns = math.floor((dt - time_tracked) * (1. / solar.SEC_PER_STEP))
 
         # Check encoders report the position we expect, otherwise compensate
         if enc_error > 1:
             # Large slip, so attempt to catch up
             turns += (enc_error - 1) * solar.STEPS_PER_ENC
-        if enc_error > 0:
+        elif enc_error > 0:
             # Small error, could be as little as one microstep so add small slip factor to catch up
             turns += solar.SLIP_FACTOR
         elif enc_error < 0:
-            # Overstepped, just dont turn for this cycle
+            time.sleep(solar.SEC_PER_STEP * solar.SLIP_FACTOR)
             turns = 0
 
         if turns > 0:
             solar.Telescope().send_command('T{}{}{}'.format(solar.Devices.body, solar.Directions.clockwise, int(turns)))
             enc_tracked = int(solar.Telescope().readline()) - enc_start
-            time_tracked = dt
             logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
             properties.az = start_az + enc_tracked * solar.ARCSEC_PER_ENC
             properties.conn.send([Responses.SET_AZ, properties.az])
-
+        time_tracked = dt
+        
 
 def thread_process(conn):
     """
@@ -352,3 +352,13 @@ class TelescopeManager(Process):
     def stop_tracking(self):
         self.tracking = False
         self.conn.send([Commands.CANCEL_TRACK])
+
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.DEBUG)
+    manager = TelescopeManager()
+
+    manager.start()
+    manager.start_tracking()
+
+    import time
+    time.sleep(30)
