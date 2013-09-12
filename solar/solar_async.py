@@ -139,6 +139,9 @@ def track_process(properties):
             logging.debug('Micro Steps: {:5.2f} Encoder Error: {}'.format(turns, int(enc_error)))
             properties.az = start_az + enc_tracked * solar.ARCSEC_PER_ENC
             properties.conn.send([Responses.SET_AZ, properties.az])
+        else:
+            time.sleep(solar.SEC_PER_STEP)
+
         time_tracked = dt
         
 
@@ -360,5 +363,12 @@ if __name__ == '__main__':
     manager.start()
     manager.start_tracking()
 
-    import time
-    time.sleep(30)
+    time_slice = 10
+    total_time = 600
+
+    time_ran = 0
+
+    while time_ran < total_time:
+        time.sleep(time_slice)
+        manager.flush_messages()
+        time_ran += time_slice
