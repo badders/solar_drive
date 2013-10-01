@@ -19,7 +19,7 @@ class Commands:
     SET_AZ, SET_ALT, SET_LAT, SET_LONG, \
         TRACK, CANCEL_TRACK, \
         TERMINATE, FINE_TUNE, \
-        SLEW_AZ, SLEW_ALT, SLEW_TO_SUN, SET_ZERO, SET_SUN = range(13)
+        SLEW_POLAR, SLEW_DEC, SLEW_TO_SUN, SET_ZERO, SET_SUN = range(13)
 
 
 class Responses:
@@ -87,8 +87,8 @@ class TrackProperties:
     alt = 0
     latitude = 0
     longitude = 0
-    tune_latitude = 0
-    tune_longitude = 0
+    tune_altitude = 0
+    tune_azimuth = 0
     connection = None
 
 def track_process(properties):
@@ -108,17 +108,21 @@ def track_process(properties):
             if cmd == Commands.CANCEL_TRACK:
                 return
             elif cmd == Commands.FINE_TUNE:
-                tune_longitude = args[0][0]
-                tune_latitude = args[0][0]
-                properties.tune_longitude = tune_longitude
-                properties.tune_latitude = tune_latitude
+                tune_azimuth = args[0][0]
+                tune_altitude = args[0][0]
+                if properties.tune_azimuth != tune_azimuth:
+                    print('SLEW_AZ')
+                    slew_az(properties, tune_azimuth - properties.tune_azimuth)
+                if properties.tune_altitude != tune_altitude:
+                    print('SLEW_ALT')
+                    slew_alt(properties, tune_altitude - properties.tune_altitude)
             else:
                 raise NotImplementedError
 
         # Now do tracking
         now = datetime.utcnow()
         dt = (now - start).total_seconds()
-        enc_expected = dt / solar.SEC_PER_ENC
+        enc_expected = dt / solar.SEC_PER_ENC + properties.tune_azimuth * solar.ARCSEC_PER_ENC
         enc_error = math.floor(enc_expected - enc_tracked)
         turns = math.floor((dt - time_tracked) * (1. / solar.SEC_PER_STEP))
 
@@ -170,10 +174,10 @@ def thread_process(conn):
             return
         elif cmd == Commands.SLEW_TO_SUN:
             slew_to_sun(properties)
-        elif cmd == Commands.SLEW_AZ:
+        elif cmd == Commands.SLEW_POLAR:
             arcsec = args[0]
             slew_az(properties, arcsec)
-        elif cmd == Commands.SLEW_ALT:
+        elif cmd == Commands.SLEW_DEC:
             arcsec = args[0]
             slew_alt(properties, arcsec)
         elif cmd == Commands.SET_LAT:
@@ -185,8 +189,8 @@ def thread_process(conn):
         elif cmd == Commands.SET_ALT:
             properties.alt = args[0]
         elif cmd == Commands.FINE_TUNE:
-            properties.tune_longitude = args[0][0]
-            properties.tune_latitude = args[0][1]
+            properties.tune_azimuth = args[0][0]
+            properties.tune_altitude = args[0][1]
         elif cmd == Commands.SET_ZERO:
             logging.info('Setting as zero')
             solar.reset_zero()
@@ -317,13 +321,13 @@ class TelescopeManager(Process):
     @not_tracking
     def slew_az(self, arcsec):
         self.commands_running += 1
-        self.conn.send([Commands.SLEW_AZ, arcsec])
+        self.conn.send([Commands.SLEW_POLAR, arcsec])
 
     @not_slewing
     @not_tracking
     def slew_alt(self, arcsec):
         self.commands_running += 1
-        self.conn.send([Commands.SLEW_ALT, arcsec])
+        self.conn.send([Commands.SLEW_DEC, arcsec])
 
     @not_tracking
     def slew_to_sun(self):
@@ -334,9 +338,9 @@ class TelescopeManager(Process):
     def return_to_zero(self):
         logging.info('Returning to zero')
         self.commands_running += 1
-        self.conn.send([Commands.SLEW_AZ, -self._az])
+        self.conn.send([Commands.SLEW_POLAR, -self._az])
         self.commands_running += 1
-        self.conn.send([Commands.SLEW_ALT, -self._alt])
+        self.conn.send([Commands.SLEW_DEC, -self._alt])
 
     def tune(self, tune):
         self.conn.send([Commands.FINE_TUNE, tune])

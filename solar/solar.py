@@ -166,7 +166,7 @@ def turn(motor, direction, enc_turns):
     """
     dt = enc_turns
     while dt > 0:
-        turns = min(200., dt * 0.7)
+        turns = min(2000., dt * 0.7)
         raw_turns = turns * STEPS_PER_ENC
         raw_turns = int(max(raw_turns, STEPS_PER_ENC / 4))
         completed = _raw_turn(motor, direction, raw_turns)
@@ -175,7 +175,23 @@ def turn(motor, direction, enc_turns):
 
 def adjust_az(arcsec):
     """
-    Adjust the azimuth by arcseconds
+    Move the telescope by arcsec in azimuth
+    n.b. Not implemented, just rotates the polar axis
+    """
+    adjust_polar(arcsec)
+
+
+def adjust_alt(arcsec):
+    """
+    Move the telescope by arcsec in altitude
+    n.b. Not implemented, just rotates the declination axis
+    """
+    adjust_dec(arcsec)
+
+
+def adjust_polar(arcsec):
+    """
+    Roate the polar axis by arcseconds
     """
     turns = arcsec / ARCSEC_PER_ENC
     if turns < 0:
@@ -185,9 +201,9 @@ def adjust_az(arcsec):
     turn(Devices.body, direc, abs(turns))
 
 
-def adjust_alt(arcsec):
+def adjust_dec(arcsec):
     """
-    Adjust the altitude by arcsec
+    Rotate the declination axis by arcsec
     """
     turns = arcsec / ARCSEC_PER_ENC
     if turns < 0:
